@@ -38,7 +38,7 @@ def _schema(properties: dict[str, Any] | None = None) -> dict[str, Any]:
     }
 
 
-_COUNTRY_CODE = {"country_code": {"type": "string", "description": "Улсын ISO код, жишээ нь JP, KR, TH"}}
+_COUNTRY_CODE = {"country_code": {"type": "string", "description": "Улсын ISO код, жишээ нь CN, KR, JP, TH"}}
 
 TOOLS: list[dict[str, Any]] = [
     {

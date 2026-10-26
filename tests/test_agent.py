@@ -27,11 +27,11 @@ async def saved_messages(db):
 
 
 async def test_tool_loop_and_request_shape(agent, bot, channel, fake_messages, db):
-    fake_messages.responses = [tool_use("list_packages", {"country_code": "JP"}), text("Японд 3 багц байна.")]
+    fake_messages.responses = [tool_use("list_packages", {"country_code": "JP"}), text("Японд 2 багц байна.")]
 
     reply = await agent.reply(ToolContext(bot, channel, "u1"), "Японы багцууд?")
 
-    assert reply == "Японд 3 багц байна."
+    assert reply == "Японд 2 багц байна."
     first, second = fake_messages.calls
     assert first["model"] == "claude-opus-5-5"
     assert first["system"] == SYSTEM_PROMPT and first["tools"] == TOOLS
@@ -40,7 +40,7 @@ async def test_tool_loop_and_request_shape(agent, bot, channel, fake_messages, d
 
     tool_result = second["messages"][2]["content"][0]
     assert tool_result["tool_use_id"] == "tu_1" and "is_error" not in tool_result
-    assert [p["sku"] for p in json.loads(tool_result["content"])] == ["JP-5D-2GB", "JP-10D-2GB", "JP-15D-20GB"]
+    assert [p["sku"] for p in json.loads(tool_result["content"])] == ["JP-5D-3GB", "JP-7D-5GB"]
     # thinking блок өөрчлөлтгүй буцаж очно
     assert second["messages"][1]["content"][0] == THINKING
 
@@ -50,7 +50,7 @@ async def test_tool_loop_and_request_shape(agent, bot, channel, fake_messages, d
 
 async def test_history_is_append_only(agent, bot, channel, fake_messages, db):
     ctx = ToolContext(bot, channel, "u1")
-    fake_messages.responses = [tool_use("list_countries", {}), text("Япон, Солонгос, Тайланд.")]
+    fake_messages.responses = [tool_use("list_countries", {}), text("Хятад, БНСУ, Япон, Тайланд.")]
     await agent.reply(ctx, "Аль улсууд байна?")
     first_turn = await saved_messages(db)
 
@@ -63,12 +63,12 @@ async def test_history_is_append_only(agent, bot, channel, fake_messages, db):
 
 
 async def test_create_payment_tool_sends_invoice(agent, bot, channel, fake_messages):
-    fake_messages.responses = [tool_use("create_payment", {"package_sku": "KR-5D-2GB"}), text("QR илгээлээ.")]
+    fake_messages.responses = [tool_use("create_payment", {"package_sku": "KR-5D-1GBD"}), text("QR илгээлээ.")]
 
-    await agent.reply(ToolContext(bot, channel, "u1"), "KR 5 хоногийнхыг авъя")
+    await agent.reply(ToolContext(bot, channel, "u1"), "БНСУ 5 хоногийнхыг авъя")
 
     assert channel.sent[-1]["kind"] == "photo"
-    assert "22,000₮" in channel.sent[-1]["text"]
+    assert "25,000₮" in channel.sent[-1]["text"]
     result = json.loads(fake_messages.calls[1]["messages"][2]["content"][0]["content"])
     assert result["qr_sent"] is True
 

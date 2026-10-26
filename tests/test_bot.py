@@ -1,12 +1,12 @@
 async def test_button_flow_to_delivery(bot, channel, qpay):
     await bot.handle_start(channel, "u1")
-    assert channel.button_data() == ["c:JP", "c:KR", "c:TH"]
+    assert channel.button_data() == ["c:CN", "c:KR", "c:JP", "c:TH"]
 
     await bot.handle_button(channel, "u1", "c:JP")
-    assert channel.button_data() == ["p:JP-5D-2GB", "p:JP-10D-2GB", "p:JP-15D-20GB", "menu"]
+    assert channel.button_data() == ["p:JP-5D-3GB", "p:JP-7D-5GB", "menu"]
     assert "25,000₮" in channel.sent[-1]["buttons"][0][0].text
 
-    await bot.handle_button(channel, "u1", "p:JP-5D-2GB")
+    await bot.handle_button(channel, "u1", "p:JP-5D-3GB")
     invoice_msg = channel.sent[-1]
     assert invoice_msg["kind"] == "photo"
     assert invoice_msg["photo"].startswith(b"\x89PNG")
@@ -26,7 +26,7 @@ async def test_button_flow_to_delivery(bot, channel, qpay):
 
 
 async def test_qpay_callback_delivers(bot, channel, qpay, orders):
-    order = await bot.start_checkout(channel, "u1", "TH-7D-3GB")
+    order = await bot.start_checkout(channel, "u1", "TH-8D-15GB")
     qpay.mark_all_paid()
     channel.sent.clear()
 
@@ -38,13 +38,13 @@ async def test_qpay_callback_delivers(bot, channel, qpay, orders):
 
 
 async def test_cannot_check_someone_elses_order(bot, channel):
-    order = await bot.start_checkout(channel, "u1", "TH-7D-3GB")
+    order = await bot.start_checkout(channel, "u1", "TH-8D-15GB")
     await bot.handle_button(channel, "intruder", f"chk:{order.id}")
     assert channel.sent[-1] == {"kind": "text", "chat_id": "intruder", "text": "Захиалга олдсонгүй.", "buttons": []}
 
 
 async def test_out_of_stock_notifies_admin_once(bot, channel, qpay):
-    order = await bot.start_checkout(channel, "u1", "KR-30D-UNL")
+    order = await bot.start_checkout(channel, "u1", "CN-7D-5GB")
     qpay.mark_all_paid()
     channel.sent.clear()
 

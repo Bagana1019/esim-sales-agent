@@ -1,22 +1,25 @@
-# Улс, багцын жагсаалт. Үнэ, багцууд нь ЖИШЭЭ — өөрийн бодит үнээр солино уу.
+# Улс, багцын жагсаалт (Монголын зах зээлд хамгийн их борлуулагддаг 4 улс).
 # sku нь eSIM сангийн (esim_profiles.package_sku) утгатай таарах ёстой.
 countries:
+  - code: CN
+    name: Хятад
+    flag: "🇨🇳"
+  - code: KR
+    name: БНСУ
+    flag: "🇰🇷"
   - code: JP
     name: Япон
     flag: "🇯🇵"
-  - code: KR
-    name: Солонгос
-    flag: "🇰🇷"
   - code: TH
     name: Тайланд
     flag: "🇹🇭"
 
 packages:
-  - {sku: JP-5D-2GB,  country: JP, days: 5,  data: "Өдөрт 2GB", price_mnt: 25000}
-  - {sku: JP-10D-2GB, country: JP, days: 10, data: "Өдөрт 2GB", price_mnt: 42000}
-  - {sku: JP-15D-20GB, country: JP, days: 15, data: "Нийт 20GB", price_mnt: 55000}
-  - {sku: KR-5D-2GB,  country: KR, days: 5,  data: "Өдөрт 2GB", price_mnt: 22000}
-  - {sku: KR-10D-2GB, country: KR, days: 10, data: "Өдөрт 2GB", price_mnt: 38000}
-  - {sku: KR-30D-UNL, country: KR, days: 30, data: "Хязгааргүй", price_mnt: 79000}
-  - {sku: TH-7D-3GB,  country: TH, days: 7,  data: "Өдөрт 3GB", price_mnt: 24000}
-  - {sku: TH-15D-30GB, country: TH, days: 15, data: "Нийт 30GB", price_mnt: 45000}
+  - {sku: CN-3D-1GB,  country: CN, days: 3, data: "Нийт 1GB", price_mnt: 15000}
+  - {sku: CN-5D-3GB,  country: CN, days: 5, data: "Нийт 3GB", price_mnt: 28000}
+  - {sku: CN-7D-5GB,  country: CN, days: 7, data: "Нийт 5GB", price_mnt: 42000}
+  - {sku: KR-5D-1GBD, country: KR, days: 5, data: "Өдөрт 1GB, дараа нь хурд хязгаартай хязгааргүй", price_mnt: 25000}
+  - {sku: KR-7D-10GB, country: KR, days: 7, data: "Нийт 10GB", price_mnt: 40000}
+  - {sku: JP-5D-3GB,  country: JP, days: 5, data: "Нийт 3GB", price_mnt: 25000}
+  - {sku: JP-7D-5GB,  country: JP, days: 7, data: "Нийт 5GB", price_mnt: 38000}
+  - {sku: TH-8D-15GB, country: TH, days: 8, data: "Нийт 15GB", price_mnt: 30000}
