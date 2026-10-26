@@ -28,62 +28,50 @@ class ToolError(Exception):
     pass
 
 
-def _schema(properties: dict[str, Any] | None = None) -> dict[str, Any]:
+def _tool(name: str, description: str, properties: dict[str, Any] | None = None) -> dict[str, Any]:
+    """OpenAI-compatible (Groq) function tool тодорхойлолт."""
     properties = properties or {}
     return {
-        "type": "object",
-        "properties": properties,
-        "required": list(properties),
-        "additionalProperties": False,
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": description,
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": list(properties),
+                "additionalProperties": False,
+            },
+        },
     }
 
 
 _COUNTRY_CODE = {"country_code": {"type": "string", "description": "Улсын ISO код, жишээ нь CN, KR, JP, TH"}}
 
 TOOLS: list[dict[str, Any]] = [
-    {
-        "name": "list_countries",
-        "description": "Манай eSIM зарж буй улсуудын жагсаалт.",
-        "input_schema": _schema(),
-        "strict": True,
-    },
-    {
-        "name": "list_packages",
-        "description": "Тухайн улсын бүх багц: sku, хоног, дата, үнэ. Үнэ хэлэхээс өмнө заавал дуудна.",
-        "input_schema": _schema(_COUNTRY_CODE),
-        "strict": True,
-    },
-    {
-        "name": "show_package_buttons",
-        "description": "Тухайн улсын багцуудыг харилцагчид товчлуураар харуулна. Харилцагч товч дарж сонгоно.",
-        "input_schema": _schema(_COUNTRY_CODE),
-        "strict": True,
-    },
-    {
-        "name": "create_payment",
-        "description": (
-            "Сонгосон багцад захиалга үүсгэж, QPay төлбөрийн QR кодыг харилцагчид илгээнэ. "
-            "Харилцагч тодорхой багц сонгож, авахаа илэрхийлсэн үед л дуудна."
-        ),
-        "input_schema": _schema(
-            {"package_sku": {"type": "string", "description": "list_packages-ийн буцаасан sku"}}
-        ),
-        "strict": True,
-    },
-    {
-        "name": "get_my_orders",
-        "description": "Энэ харилцагчийн сүүлийн захиалгууд, тэдгээрийн төлөв.",
-        "input_schema": _schema(),
-        "strict": True,
-    },
-    {
-        "name": "resend_esim",
-        "description": "Хүргэгдсэн захиалгын eSIM QR код, суулгах мэдээллийг дахин илгээнэ.",
-        "input_schema": _schema(
-            {"order_id": {"type": "string", "description": "get_my_orders-ийн буцаасан order_id"}}
-        ),
-        "strict": True,
-    },
+    _tool("list_countries", "Манай eSIM зарж буй улсуудын жагсаалт."),
+    _tool(
+        "list_packages",
+        "Тухайн улсын бүх багц: sku, хоног, дата, үнэ. Үнэ хэлэхээс өмнө заавал дуудна.",
+        _COUNTRY_CODE,
+    ),
+    _tool(
+        "show_package_buttons",
+        "Тухайн улсын багцуудыг харилцагчид товчлуураар харуулна. Харилцагч товч дарж сонгоно.",
+        _COUNTRY_CODE,
+    ),
+    _tool(
+        "create_payment",
+        "Сонгосон багцад захиалга үүсгэж, QPay төлбөрийн QR кодыг харилцагчид илгээнэ. "
+        "Харилцагч тодорхой багц сонгож, авахаа илэрхийлсэн үед л дуудна.",
+        {"package_sku": {"type": "string", "description": "list_packages-ийн буцаасан sku"}},
+    ),
+    _tool("get_my_orders", "Энэ харилцагчийн сүүлийн захиалгууд, тэдгээрийн төлөв."),
+    _tool(
+        "resend_esim",
+        "Хүргэгдсэн захиалгын eSIM QR код, суулгах мэдээллийг дахин илгээнэ.",
+        {"order_id": {"type": "string", "description": "get_my_orders-ийн буцаасан order_id"}},
+    ),
 ]
 
 _STATUS_TEXT = {

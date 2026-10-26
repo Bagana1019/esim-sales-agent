@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 import httpx
-from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
 
 from .agent.loop import SalesAgent
 from .bot import SalesBot
@@ -55,11 +55,12 @@ async def build_services(
         public_base_url=settings.public_base_url,
         callback_secret=settings.callback_secret,
     )
+    llm = AsyncOpenAI(api_key=settings.groq_api_key, base_url=settings.groq_base_url) if settings.groq_api_key else None
     agent = SalesAgent(
-        AsyncAnthropic(api_key=settings.anthropic_api_key),
+        llm,
         db,
-        model=settings.anthropic_model,
-        effort=settings.anthropic_effort,
+        model=settings.groq_model,
+        reasoning_effort=settings.groq_reasoning_effort,
         idle_hours=settings.conversation_idle_hours,
         max_messages=settings.conversation_max_messages,
     )

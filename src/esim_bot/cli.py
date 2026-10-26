@@ -130,7 +130,7 @@ async def poll(fake_payments: bool) -> None:
                     count = fake.mark_all_paid()
                     await tg.send_text(incoming.chat_id, f"(Туршилт) {count} нэхэмжлэх төлөгдсөнд тооцлоо. 'Төлбөр шалгах' дарна уу.")
                     continue
-                # Claude-ийн хариуг хүлээх зуур бусад мессежийг зогсоохгүйн тулд тусад нь ажиллуулна
+                # LLM-ийн хариуг хүлээх зуур бусад мессежийг зогсоохгүйн тулд тусад нь ажиллуулна
                 task = asyncio.create_task(dispatch(services.bot, tg, incoming))
                 tasks.add(task)
                 task.add_done_callback(tasks.discard)

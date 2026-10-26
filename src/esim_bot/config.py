@@ -10,13 +10,16 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./esim.db"
     catalog_path: str = "data/catalog.yaml"
 
-    # Claude
-    anthropic_api_key: str | None = None
-    anthropic_model: str = "claude-opus-5-5"
-    anthropic_effort: str = "low"
-    # Яриаг шинээр эхлүүлэх нөхцөл: удаан идэвхгүй байх эсвэл хэт урт болох
+    # LLM (Groq, OpenAI-compatible API)
+    groq_api_key: str | None = None
+    groq_model: str = "openai/gpt-oss-120b"
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    # gpt-oss загваруудад: low | medium | high. Дэмждэггүй загвар сонговол хоосон үлдээнэ
+    groq_reasoning_effort: str | None = "low"
+    # Удаан идэвхгүй байвал шинэ яриа эхэлнэ
     conversation_idle_hours: int = 12
-    conversation_max_messages: int = 60
+    # Загварт илгээх сүүлийн мессежийн тоо (үнэгүй түвшний токены хязгаарт багтаана)
+    conversation_max_messages: int = 20
 
     # Telegram
     telegram_bot_token: str = ""

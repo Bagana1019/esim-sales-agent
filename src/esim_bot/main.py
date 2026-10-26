@@ -59,7 +59,7 @@ async def telegram_webhook(
         raise HTTPException(status_code=403)
     if services.telegram is None:
         raise HTTPException(status_code=503, detail="Telegram not configured")
-    # Telegram-д шууд 200 буцааж, удаан ажиллах хэсгийг (Claude, QPay) ард нь хийнэ
+    # Telegram-д шууд 200 буцааж, удаан ажиллах хэсгийг (LLM, QPay) ард нь хийнэ
     if incoming := parse_update(await request.json()):
         background.add_task(dispatch, services.bot, services.telegram, incoming)
     return {"ok": True}

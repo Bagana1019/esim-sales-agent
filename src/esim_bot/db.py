@@ -59,8 +59,7 @@ class EsimProfile(Base):
 
 
 class Conversation(Base):
-    """Claude-тэй хийсэн ярианы түүх. Зөвхөн нэмж бичнэ (append-only) — өмнөх
-    мессежүүдийг засах, устгах нь thinking блокуудыг хүчингүй болгодог."""
+    """LLM-тэй хийсэн ярианы түүх (OpenAI chat форматаар). Зөвхөн нэмж бичнэ."""
 
     __tablename__ = "conversations"
 

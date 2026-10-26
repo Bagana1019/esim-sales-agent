@@ -1,10 +1,11 @@
 import copy
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from anthropic.types.beta import BetaMessage
+from openai.types.chat import ChatCompletion
 
 from esim_bot.agent.loop import SalesAgent
 from esim_bot.bot import SalesBot
@@ -34,29 +35,40 @@ class RecordingChannel:
         return [b.data for row in self.sent[index]["buttons"] for b in row if b.data]
 
 
-class FakeMessages:
-    """client.beta.messages-ийн оронд: бэлдсэн хариунуудыг дарааллаар буцаана."""
+class FakeCompletions:
+    """client.chat.completions-ийн оронд: бэлдсэн хариунууд (эсвэл exception)-ыг дарааллаар буцаана."""
 
-    def __init__(self, responses: list[BetaMessage]):
+    def __init__(self, responses: list[Any]):
         self.responses = list(responses)
         self.calls: list[dict[str, Any]] = []
 
     async def create(self, **kwargs):
         self.calls.append(copy.deepcopy(kwargs))
-        return self.responses.pop(0)
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
 
-def make_message(content: list[dict[str, Any]], stop_reason: str) -> BetaMessage:
-    return BetaMessage.model_validate(
+def make_completion(content: str | None = None, tool_calls: list[tuple[str, str, dict[str, Any] | str]] | None = None) -> ChatCompletion:
+    """tool_calls: [(id, нэр, аргумент)] — аргумент dict эсвэл түүхий JSON мөр."""
+    message: dict[str, Any] = {"role": "assistant", "content": content}
+    if tool_calls:
+        message["tool_calls"] = [
+            {
+                "id": call_id,
+                "type": "function",
+                "function": {"name": name, "arguments": args if isinstance(args, str) else json.dumps(args)},
+            }
+            for call_id, name, args in tool_calls
+        ]
+    return ChatCompletion.model_validate(
         {
-            "id": "msg_test",
-            "type": "message",
-            "role": "assistant",
-            "model": "claude-opus-5-5",
-            "content": content,
-            "stop_reason": stop_reason,
-            "stop_sequence": None,
-            "usage": {"input_tokens": 10, "output_tokens": 10},
+            "id": "chatcmpl-test",
+            "object": "chat.completion",
+            "created": 0,
+            "model": "openai/gpt-oss-120b",
+            "choices": [{"index": 0, "finish_reason": "tool_calls" if tool_calls else "stop", "message": message}],
         }
     )
 
@@ -93,14 +105,16 @@ def channel() -> RecordingChannel:
 
 
 @pytest.fixture
-def fake_messages() -> FakeMessages:
-    return FakeMessages([])
+def fake_llm() -> FakeCompletions:
+    return FakeCompletions([])
 
 
 @pytest.fixture
-def agent(db, fake_messages) -> SalesAgent:
-    client = SimpleNamespace(beta=SimpleNamespace(messages=fake_messages))
-    return SalesAgent(client, db, model="claude-opus-5-5", effort="low", idle_hours=12, max_messages=60)
+def agent(db, fake_llm) -> SalesAgent:
+    client = SimpleNamespace(chat=SimpleNamespace(completions=fake_llm))
+    return SalesAgent(
+        client, db, model="openai/gpt-oss-120b", reasoning_effort="low", idle_hours=12, max_messages=20
+    )
 
 
 @pytest.fixture
