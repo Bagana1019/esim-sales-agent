@@ -70,16 +70,29 @@ uv run esim chat --fake-payments
 Товчлуурыг дугаараар нь сонгоно, `/pay` бичвэл хуурамч төлбөр төлөгдсөнд тооцогдоно. QR зургууд
 `out/` хавтаст хадгалагдана. Чөлөөт текст бичихэд `ANTHROPIC_API_KEY` хэрэгтэй.
 
-### 2. Telegram + QPay sandbox
+### 2. Telegram дээр компьютер дээрээ турших (ngrok хэрэггүй)
 
-1. @BotFather-аас бот үүсгэж `TELEGRAM_BOT_TOKEN`-оо авна.
-2. Серверээ гадагш нээнэ (жишээ нь `ngrok http 8000`) — URL-аа `PUBLIC_BASE_URL`-д бичнэ.
-3. eSIM сангаа оруулна:
+1. @BotFather-аас бот үүсгэж (`/newbot`) token-оо `.env`-ийн `TELEGRAM_BOT_TOKEN`-д бичнэ.
+2. Ботоо асаана:
+   ```bash
+   uv run esim poll --fake-payments
+   ```
+3. Telegram-аас ботоо хайж олоод **Start** дарна. QR гарсны дараа чатад `/pay` гэж бичээд
+   "Төлбөр шалгах" дарвал eSIM ирнэ (туршилтын eSIM-ууд санд автоматаар нэмэгдэнэ).
+
+`--fake-payments`-гүй ажиллуулбал жинхэнэ QPay (sandbox) руу холбогдоно. Энэ үед callback ирэхгүй ч
+"Төлбөр шалгах" товч QPay-ээс шууд шалгадаг тул ажиллана. Терминалд гарах `chat_id=...`-г
+`ADMIN_CHAT_ID`-д бичвэл админы мэдэгдэл тэр чат руу очно.
+
+### 3. Сервер дээр (webhook + QPay callback)
+
+1. Серверээ гадагш нээнэ (жишээ нь `ngrok http 8000`) — URL-аа `PUBLIC_BASE_URL`-д бичнэ.
+2. eSIM сангаа оруулна:
    ```bash
    uv run esim import-esims data/esims.example.csv
    uv run esim stock
    ```
-4. Сервер асааж, webhook бүртгэнэ:
+3. Сервер асааж, webhook бүртгэнэ:
    ```bash
    uv run uvicorn esim_bot.main:app --port 8000
    uv run esim set-webhook

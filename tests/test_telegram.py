@@ -1,5 +1,14 @@
+import asyncio
+import json
+
+import httpx
+import pytest
+import respx
+
 from esim_bot.channels.base import Button
 from esim_bot.channels.telegram import _markup, parse_update
+from esim_bot.cli import poll
+from esim_bot.config import get_settings
 
 
 def message(text, chat_type="private"):
@@ -33,3 +42,61 @@ def test_markup():
         ]
     }
     assert _markup(None) is None
+
+
+# --- Polling горим: Telegram API-г respx-ээр дуурайлгаж бүтэн давталтыг турших ---
+
+TG = "https://api.telegram.org/bot123:abc"
+
+
+def ok(result):
+    return httpx.Response(200, json={"ok": True, "result": result})
+
+
+def callback(update_id, data):
+    chat = {"chat": {"id": 42, "type": "private"}}
+    return {"update_id": update_id, "callback_query": {"id": f"cb{update_id}", "data": data, "message": chat}}
+
+
+@respx.mock
+async def test_poll_handles_updates_end_to_end(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path}/poll.db")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+    get_settings.cache_clear()
+
+    respx.post(f"{TG}/deleteWebhook").mock(return_value=ok(True))
+    respx.post(f"{TG}/getMe").mock(return_value=ok({"username": "test_esim_bot"}))
+    answer = respx.post(f"{TG}/answerCallbackQuery").mock(return_value=ok(True))
+    send = respx.post(f"{TG}/sendMessage").mock(return_value=ok({}))
+    photo = respx.post(f"{TG}/sendPhoto").mock(return_value=ok({}))
+
+    batches = iter(
+        [
+            [message("/start") | {"update_id": 1}],
+            [callback(2, "c:JP")],
+            [callback(3, "p:JP-5D-3GB")],
+            [message("/pay") | {"update_id": 4}],
+        ]
+    )
+
+    def get_updates(request):
+        try:
+            return ok(next(batches))
+        except StopIteration:
+            raise asyncio.CancelledError  # давталтыг зогсооно (Ctrl+C-тэй адил)
+
+    updates = respx.post(f"{TG}/getUpdates").mock(side_effect=get_updates)
+
+    with pytest.raises(asyncio.CancelledError):
+        await poll(fake_payments=True)
+    get_settings.cache_clear()
+
+    texts = [json.loads(c.request.read())["text"] for c in send.calls]
+    assert any("Очих улсаа сонгоно уу" in t for t in texts)
+    assert any("Япон - багцаа сонгоно уу" in t for t in texts)
+    assert any(t.startswith("(Туршилт)") for t in texts)
+    assert photo.call_count == 1  # нэхэмжлэхийн QR
+    assert answer.call_count == 2
+    # offset бүр өмнөх update_id + 1 байх ёстой (нэг мессежийг хоёр удаа боловсруулахгүй)
+    offsets = [json.loads(c.request.read()).get("offset") for c in updates.calls]
+    assert offsets[:4] == [None, 2, 3, 4]

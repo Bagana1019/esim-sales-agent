@@ -1,6 +1,7 @@
 """Удирдлагын командууд.
 
   uv run esim chat --fake-payments   # терминал дээр ботыг турших (Telegram хэрэггүй)
+  uv run esim poll --fake-payments   # Telegram ботыг компьютер дээрээ ажиллуулах (ngrok хэрэггүй)
   uv run esim import-esims esims.csv # eSIM санд нэмэх
   uv run esim stock                  # үлдэгдэл харах
   uv run esim set-webhook            # Telegram webhook бүртгэх
@@ -8,9 +9,13 @@
 
 import argparse
 import asyncio
+import logging
 from pathlib import Path
 
+import httpx
+
 from .channels.base import Button, Keyboard
+from .channels.telegram import dispatch, parse_update
 from .config import get_settings
 from .db import Database
 from .inventory import import_esims, stock_by_sku
@@ -18,6 +23,7 @@ from .payments.fake import FakeQPay
 from .services import build_services
 
 OUT_DIR = Path("out")
+log = logging.getLogger(__name__)
 
 
 class ConsoleChannel:
@@ -83,6 +89,57 @@ async def chat(fake_payments: bool) -> None:
         await services.aclose()
 
 
+async def poll(fake_payments: bool) -> None:
+    """Telegram-аас long polling-оор мессеж татна — нийтийн URL, ngrok хэрэггүй."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # хүсэлтийн URL-д bot token орсон байдаг
+
+    settings = get_settings()
+    fake = FakeQPay() if fake_payments else None
+    services = await build_services(settings, payments=fake)
+    tg = services.telegram
+    tasks: set[asyncio.Task[None]] = set()
+    try:
+        if tg is None:
+            raise SystemExit(".env файлд TELEGRAM_BOT_TOKEN тохируулаагүй байна")
+        if fake and not await stock_by_sku(services.db):
+            added = await import_esims(services.db, "data/esims.example.csv")
+            print(f"(Туршилтын {added} eSIM санд нэмэгдлээ)")
+        await tg.delete_webhook()  # webhook бүртгэлтэй үед getUpdates ажиллахгүй
+        me = await tg.get_me()
+        print(f"@{me['username']} ажиллаж байна. Telegram-аас ботоо хайж олоод Start дарна уу.")
+        if fake:
+            print("Хуурамч төлбөрийн горим: QR гарсны дараа чатад /pay гэж бичээд 'Төлбөр шалгах' дарна.")
+        print("Зогсоох: Ctrl+C")
+
+        offset: int | None = None
+        while True:
+            try:
+                updates = await tg.get_updates(offset)
+            except (httpx.HTTPError, RuntimeError):
+                log.exception("getUpdates алдаа, 3 секундын дараа дахин оролдоно")
+                await asyncio.sleep(3)
+                continue
+            for update in updates:
+                offset = update["update_id"] + 1
+                incoming = parse_update(update)
+                if incoming is None:
+                    continue
+                log.info("chat_id=%s %s: %s", incoming.chat_id, incoming.kind, incoming.value[:80])
+                if fake and incoming.kind == "text" and incoming.value == "/pay":
+                    count = fake.mark_all_paid()
+                    await tg.send_text(incoming.chat_id, f"(Туршилт) {count} нэхэмжлэх төлөгдсөнд тооцлоо. 'Төлбөр шалгах' дарна уу.")
+                    continue
+                # Claude-ийн хариуг хүлээх зуур бусад мессежийг зогсоохгүйн тулд тусад нь ажиллуулна
+                task = asyncio.create_task(dispatch(services.bot, tg, incoming))
+                tasks.add(task)
+                task.add_done_callback(tasks.discard)
+    finally:
+        if tasks:  # эхэлсэн хариултуудыг дуусгаж байж хаана
+            await asyncio.wait(tasks, timeout=15)
+        await services.aclose()
+
+
 async def import_cmd(path: str) -> None:
     db = Database(get_settings().database_url)
     await db.create_all()
@@ -119,6 +176,8 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
     p_chat = sub.add_parser("chat", help="терминал дээр ботыг турших")
     p_chat.add_argument("--fake-payments", action="store_true", help="QPay-ийн оронд хуурамч төлбөр")
+    p_poll = sub.add_parser("poll", help="Telegram ботыг локалаар ажиллуулах (webhook-гүй)")
+    p_poll.add_argument("--fake-payments", action="store_true", help="QPay-ийн оронд хуурамч төлбөр")
     p_import = sub.add_parser("import-esims", help="CSV-ээс eSIM санд нэмэх")
     p_import.add_argument("path")
     sub.add_parser("stock", help="eSIM үлдэгдэл")
@@ -127,6 +186,11 @@ def main() -> None:
 
     if args.cmd == "chat":
         asyncio.run(chat(args.fake_payments))
+    elif args.cmd == "poll":
+        try:
+            asyncio.run(poll(args.fake_payments))
+        except KeyboardInterrupt:
+            print("\nЗогслоо")
     elif args.cmd == "import-esims":
         asyncio.run(import_cmd(args.path))
     elif args.cmd == "stock":

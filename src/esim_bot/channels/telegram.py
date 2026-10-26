@@ -1,11 +1,14 @@
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 
 from .base import Keyboard
+
+if TYPE_CHECKING:
+    from ..bot import SalesBot
 
 log = logging.getLogger(__name__)
 
@@ -57,13 +60,21 @@ class TelegramChannel:
         self.http = http
         self.base = f"https://api.telegram.org/bot{token}"
 
-    async def _call(self, method: str, files: dict[str, Any] | None = None, **params: Any) -> Any:
+    async def _call(
+        self,
+        method: str,
+        *,
+        files: dict[str, Any] | None = None,
+        http_timeout: float | None = None,
+        **params: Any,
+    ) -> Any:
         params = {k: v for k, v in params.items() if v is not None}
+        extra: dict[str, Any] = {"timeout": http_timeout} if http_timeout else {}
         if files:
             data = {k: json.dumps(v) if isinstance(v, dict) else str(v) for k, v in params.items()}
-            resp = await self.http.post(f"{self.base}/{method}", data=data, files=files)
+            resp = await self.http.post(f"{self.base}/{method}", data=data, files=files, **extra)
         else:
-            resp = await self.http.post(f"{self.base}/{method}", json=params)
+            resp = await self.http.post(f"{self.base}/{method}", json=params, **extra)
         body = resp.json()
         if not body.get("ok"):
             log.error("Telegram %s failed: %s", method, body)
@@ -95,3 +106,34 @@ class TelegramChannel:
             secret_token=secret or None,
             allowed_updates=["message", "callback_query"],
         )
+
+    async def delete_webhook(self) -> None:
+        await self._call("deleteWebhook")
+
+    async def get_me(self) -> dict[str, Any]:
+        return await self._call("getMe")
+
+    async def get_updates(self, offset: int | None, timeout: int = 25) -> list[dict[str, Any]]:
+        """Long polling: шинэ мессеж ирэх хүртэл timeout секунд хүлээнэ."""
+        return await self._call(
+            "getUpdates",
+            http_timeout=timeout + 10,
+            offset=offset,
+            timeout=timeout,
+            allowed_updates=["message", "callback_query"],
+        )
+
+
+async def dispatch(bot: "SalesBot", tg: TelegramChannel, incoming: Incoming) -> None:
+    """Telegram-аас ирсэн нэг үйлдлийг ботод дамжуулна. Ард ажилладаг тул алдааг энд бүртгэнэ."""
+    try:
+        if incoming.callback_id:
+            await tg.answer_callback(incoming.callback_id)
+        if incoming.kind == "start":
+            await bot.handle_start(tg, incoming.chat_id)
+        elif incoming.kind == "button":
+            await bot.handle_button(tg, incoming.chat_id, incoming.value)
+        else:
+            await bot.handle_text(tg, incoming.chat_id, incoming.value)
+    except Exception:
+        log.exception("Telegram update failed (chat %s)", incoming.chat_id)

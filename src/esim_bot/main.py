@@ -12,11 +12,12 @@ from typing import Any
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
-from .channels.telegram import Incoming, parse_update
+from .channels.telegram import dispatch, parse_update
 from .config import get_settings
 from .services import Services, build_services
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logging.getLogger("httpx").setLevel(logging.WARNING)  # хүсэлтийн URL-д bot token орсон байдаг
 log = logging.getLogger(__name__)
 
 
@@ -41,19 +42,6 @@ async def _run_logged(fn: Callable[..., Awaitable[Any]], *args: Any) -> None:
         log.exception("Background task %s failed", fn.__name__)
 
 
-async def _handle_telegram(services: Services, incoming: Incoming) -> None:
-    tg, bot = services.telegram, services.bot
-    assert tg is not None
-    if incoming.callback_id:
-        await tg.answer_callback(incoming.callback_id)
-    if incoming.kind == "start":
-        await bot.handle_start(tg, incoming.chat_id)
-    elif incoming.kind == "button":
-        await bot.handle_button(tg, incoming.chat_id, incoming.value)
-    else:
-        await bot.handle_text(tg, incoming.chat_id, incoming.value)
-
-
 @app.get("/health")
 async def health() -> dict[str, bool]:
     return {"ok": True}
@@ -73,7 +61,7 @@ async def telegram_webhook(
         raise HTTPException(status_code=503, detail="Telegram not configured")
     # Telegram-д шууд 200 буцааж, удаан ажиллах хэсгийг (Claude, QPay) ард нь хийнэ
     if incoming := parse_update(await request.json()):
-        background.add_task(_run_logged, _handle_telegram, services, incoming)
+        background.add_task(dispatch, services.bot, services.telegram, incoming)
     return {"ok": True}
 
 
