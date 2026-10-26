@@ -1,18 +1,23 @@
 # Улс, багцын жагсаалт (Монголын зах зээлд хамгийн их борлуулагддаг 4 улс).
+# aliases: харилцагч латинаар г.м. бичих нэрс — бот ойлгоход тусална.
 # sku нь eSIM сангийн (esim_profiles.package_sku) утгатай таарах ёстой.
 countries:
   - code: CN
     name: Хятад
     flag: "🇨🇳"
+    aliases: [China, Hytad, Hyatad, Khyatad, Kitad]
   - code: KR
     name: БНСУ
     flag: "🇰🇷"
+    aliases: [Солонгос, Korea, South Korea, Solongos, BNSU]
   - code: JP
     name: Япон
     flag: "🇯🇵"
+    aliases: [Japan, Yapon, Japon, Iapon]
   - code: TH
     name: Тайланд
     flag: "🇹🇭"
+    aliases: [Thailand, Tailand, Thai]
 
 packages:
   - {sku: CN-3D-1GB,  country: CN, days: 3, data: "Нийт 1GB", price_mnt: 15000}

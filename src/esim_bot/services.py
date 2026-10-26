@@ -4,6 +4,7 @@ import httpx
 from openai import AsyncOpenAI
 
 from .agent.loop import SalesAgent
+from .agent.prompts import build_system_prompt
 from .bot import SalesBot
 from .catalog import Catalog
 from .channels.base import Channel
@@ -59,6 +60,7 @@ async def build_services(
     agent = SalesAgent(
         llm,
         db,
+        system_prompt=build_system_prompt(catalog),
         model=settings.groq_model,
         reasoning_effort=settings.groq_reasoning_effort,
         idle_hours=settings.conversation_idle_hours,

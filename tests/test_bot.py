@@ -55,3 +55,16 @@ async def test_out_of_stock_notifies_admin_once(bot, channel, qpay):
     user_msgs = [m for m in channel.sent if m["chat_id"] == "u1"]
     assert len(admin_msgs) == 1 and order.id in admin_msgs[0]["text"]
     assert len(user_msgs) == 2 and all("Төлбөр баталгаажлаа" in m["text"] for m in user_msgs)
+
+
+def test_catalog_understands_latin_country_names(catalog):
+    assert catalog.country("Hytad").code == "CN"
+    assert catalog.country(" solongos ").code == "KR"
+    assert catalog.country("Япон").code == "JP"
+    assert [p.sku for p in catalog.packages_for("thailand")] == ["TH-8D-15GB"]
+    assert catalog.country("Франц") is None and catalog.packages_for("Франц") == []
+
+
+async def test_agent_can_show_buttons_by_latin_name(bot, channel):
+    assert await bot.show_packages(channel, "u1", "Hytad")
+    assert channel.button_data() == ["p:CN-3D-1GB", "p:CN-5D-3GB", "p:CN-7D-5GB", "menu"]

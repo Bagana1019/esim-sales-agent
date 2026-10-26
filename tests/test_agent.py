@@ -5,7 +5,6 @@ import openai
 from sqlalchemy import select
 
 from esim_bot.agent.loop import BUSY_REPLY, DISABLED_REPLY, SalesAgent
-from esim_bot.agent.prompts import SYSTEM_PROMPT
 from esim_bot.agent.tools import TOOLS, ToolContext
 from esim_bot.db import Conversation
 
@@ -41,7 +40,7 @@ async def test_tool_loop_and_request_shape(agent, bot, channel, fake_llm, db):
     first, second = fake_llm.calls
     assert first["model"] == "openai/gpt-oss-120b"
     assert first["tools"] == TOOLS and first["reasoning_effort"] == "low"
-    assert first["messages"][0] == {"role": "system", "content": SYSTEM_PROMPT}
+    assert first["messages"][0] == {"role": "system", "content": agent.system_prompt}
 
     tool_msg = second["messages"][3]
     assert tool_msg["role"] == "tool" and tool_msg["tool_call_id"] == "call_1"
@@ -128,7 +127,7 @@ async def test_only_recent_messages_are_sent(agent, bot, channel, fake_llm):
 
 
 async def test_without_api_key_replies_with_menu_hint(db, bot, channel):
-    agent = SalesAgent(None, db, model="m", idle_hours=12, max_messages=20)
+    agent = SalesAgent(None, db, system_prompt="", model="m", idle_hours=12, max_messages=20)
     assert await agent.reply(ToolContext(bot, channel, "u1"), "Сайн уу") == DISABLED_REPLY
 
 
@@ -149,3 +148,12 @@ def test_to_plain_text_strips_markdown():
 
     raw = "## Багцууд\n* **7 хоног / Нийт 5GB** – 38,000 ₮\n- `JP` __тохиромжтой__\n\n5 * 2 = 10"
     assert to_plain_text(raw) == "Багцууд\n• 7 хоног / Нийт 5GB – 38,000 ₮\n• JP тохиромжтой\n\n5 * 2 = 10"
+
+
+def test_system_prompt_contains_catalog(catalog):
+    from esim_bot.agent.prompts import build_system_prompt
+
+    prompt = build_system_prompt(catalog)
+    assert "🇨🇳 Хятад (код CN; өөр нэр: China, Hytad, Hyatad, Khyatad, Kitad)" in prompt
+    assert "• 7 хоног / Нийт 5GB - 42,000₮ (sku: CN-7D-5GB)" in prompt
+    assert "{catalog}" not in prompt

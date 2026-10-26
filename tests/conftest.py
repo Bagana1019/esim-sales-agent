@@ -8,6 +8,7 @@ import pytest
 from openai.types.chat import ChatCompletion
 
 from esim_bot.agent.loop import SalesAgent
+from esim_bot.agent.prompts import build_system_prompt
 from esim_bot.bot import SalesBot
 from esim_bot.catalog import Catalog
 from esim_bot.db import Database
@@ -110,10 +111,16 @@ def fake_llm() -> FakeCompletions:
 
 
 @pytest.fixture
-def agent(db, fake_llm) -> SalesAgent:
+def agent(db, catalog, fake_llm) -> SalesAgent:
     client = SimpleNamespace(chat=SimpleNamespace(completions=fake_llm))
     return SalesAgent(
-        client, db, model="openai/gpt-oss-120b", reasoning_effort="low", idle_hours=12, max_messages=20
+        client,
+        db,
+        system_prompt=build_system_prompt(catalog),
+        model="openai/gpt-oss-120b",
+        reasoning_effort="low",
+        idle_hours=12,
+        max_messages=20,
     )
 
 

@@ -11,7 +11,6 @@ from openai import AsyncOpenAI
 from sqlalchemy import select
 
 from ..db import Conversation, Database, utcnow
-from .prompts import SYSTEM_PROMPT
 from .tools import TOOLS, ToolContext, ToolError, run_tool
 
 log = logging.getLogger(__name__)
@@ -36,6 +35,7 @@ class SalesAgent:
         client: AsyncOpenAI | None,
         db: Database,
         *,
+        system_prompt: str,
         model: str,
         idle_hours: int,
         max_messages: int,
@@ -44,6 +44,7 @@ class SalesAgent:
     ):
         self.client = client  # None бол API key тохируулаагүй — зөвхөн товчлуурын урсгал ажиллана
         self.db = db
+        self.system_prompt = system_prompt
         self.model = model
         self.reasoning_effort = reasoning_effort or None
         self.idle_after = timedelta(hours=idle_hours)
@@ -99,7 +100,7 @@ class SalesAgent:
     async def _complete(self, messages: list[dict[str, Any]]) -> Any:
         params: dict[str, Any] = {
             "model": self.model,
-            "messages": [{"role": "system", "content": SYSTEM_PROMPT}, *self._window(messages)],
+            "messages": [{"role": "system", "content": self.system_prompt}, *self._window(messages)],
             "tools": TOOLS,
             "tool_choice": "auto",
             "temperature": 0.3,

@@ -46,7 +46,7 @@ def _tool(name: str, description: str, properties: dict[str, Any] | None = None)
     }
 
 
-_COUNTRY_CODE = {"country_code": {"type": "string", "description": "Улсын ISO код, жишээ нь CN, KR, JP, TH"}}
+_COUNTRY_CODE = {"country_code": {"type": "string", "description": "Улсын код: CN, KR, JP эсвэл TH"}}
 
 TOOLS: list[dict[str, Any]] = [
     _tool("list_countries", "Манай eSIM зарж буй улсуудын жагсаалт."),

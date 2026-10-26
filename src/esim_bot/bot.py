@@ -83,7 +83,7 @@ class SalesBot:
 
     async def show_packages(self, channel: Channel, chat_id: str, country_code: str) -> bool:
         country = self.catalog.country(country_code)
-        packages = self.catalog.packages_for(country_code)
+        packages = self.catalog.packages_for(country.code) if country else []
         if country is None or not packages:
             return False
         buttons: Keyboard = [[Button(p.title, data=f"p:{p.sku}")] for p in packages]
