@@ -29,8 +29,9 @@ def _render(request: Request, name: str, status_code: int = 200, **context: Any)
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
     catalog = _store(request).catalog
-    groups = [(c, catalog.packages_for(c.code)) for c in catalog.countries]
-    return _render(request, "index.html", groups=[g for g in groups if g[1]], licenses=catalog.licenses)
+    groups = [(c, packages) for c in catalog.countries if (packages := catalog.packages_for(c.code))]
+    deal = min(((c, p) for c, packages in groups for p in packages), key=lambda cp: cp[1].price_mnt, default=None)
+    return _render(request, "index.html", groups=groups, licenses=catalog.licenses, deal=deal)
 
 
 def _checkout_context(request: Request, sku: str) -> dict[str, Any]:
@@ -57,6 +58,20 @@ async def checkout_submit(request: Request, sku: str = Form(...), email: str = F
     except QPayError:
         error = "Төлбөрийн систем түр ажиллахгүй байна. Хэсэг хугацааны дараа дахин оролдоно уу."
         return _render(request, "checkout.html", 503, email=email, error=error, **context)
+    return RedirectResponse(_store(request).order_path(order), status_code=303)
+
+
+@router.get("/check", response_class=HTMLResponse)
+async def check_page(request: Request) -> HTMLResponse:
+    return _render(request, "check.html")
+
+
+@router.post("/check")
+async def check_submit(request: Request, number: str = Form(...), email: str = Form(...)) -> Any:
+    order = await _store(request).find_order(number, email)
+    if order is None:
+        error = "Захиалга олдсонгүй. Захиалгын дугаар, и-мэйлээ шалгаад дахин оролдоно уу."
+        return _render(request, "check.html", 404, number=number, email=email, error=error)
     return RedirectResponse(_store(request).order_path(order), status_code=303)
 
 

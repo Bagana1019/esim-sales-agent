@@ -60,6 +60,14 @@ class WebStore:
             return None
         return order
 
+    async def find_order(self, number: str, email: str) -> Order | None:
+        """Захиалгын дугаар (#-ийн дараах 8 тэмдэгт) ба захиалахдаа бичсэн и-мэйлээр захиалга хайна."""
+        number = number.strip().lstrip("#").lower()
+        if len(number) < 8:
+            return None
+        orders = await self.orders.recent_orders(self.channel, email.strip(), limit=50)
+        return next((o for o in orders if o.id.startswith(number)), None)
+
     async def process(self, order_id: str) -> PaymentResult | None:
         """Төлбөр шалгаж, төлөгдсөн бол и-мэйлээр хүргэнэ. QPay callback, хуудасны polling хоёулаа дуудна."""
         try:

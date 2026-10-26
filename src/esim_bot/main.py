@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await app.state.services.aclose()
 
 
-app = FastAPI(title="eSIM Mongolia", lifespan=lifespan)
+app = FastAPI(title="NomadData", lifespan=lifespan)
 app.include_router(web_router)
 
 

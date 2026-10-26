@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Захиалга шалгах — {{ shop }}{% endblock %}
+{% block content %}
+<div class="wrap page narrow">
+  <div class="intro">
+    <span class="intro-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><path d="m17 17 4 4M8 11l2 2 4-4"/></svg></span>
+    <h1>Захиалга шалгах</h1>
+    <p class="muted">Захиалгын дугаар болон захиалахдаа бичсэн и-мэйлээ оруулбал захиалгын төлөв, eSIM-ийн QR код, суулгах зааврыг дахин харна.</p>
+  </div>
+  <form class="card" method="post" action="/check">
+    <div class="field">
+      <label for="number">Захиалгын дугаар</label>
+      <input id="number" name="number" type="text" required autocomplete="off" placeholder="#1a2b3c4d" value="{{ number or '' }}">
+    </div>
+    <div class="field">
+      <label for="email">И-мэйл хаяг</label>
+      <input id="email" name="email" type="email" required autocomplete="email" placeholder="name@example.com" value="{{ email or '' }}">
+    </div>
+    <p class="help">Захиалгын дугаар таны и-мэйлийн гарчиг дээр "#" тэмдгийн ард бичигдсэн байгаа.</p>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <button class="btn dark" type="submit">Шалгах</button>
+  </form>
+  <a class="back" href="/">← Нүүр хуудас</a>
+</div>
+{% endblock %}
