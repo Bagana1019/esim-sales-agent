@@ -1,3 +1,5 @@
+import hashlib
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -12,8 +14,27 @@ from ..payments.fake import FakeQPay
 from ..payments.qpay import QPayError
 from .store import WebStore, is_valid_email
 
+STATIC_DIR = Path(__file__).parent / "static"
+
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+
+
+@cache
+def asset(path: str) -> str:
+    """Статик файлын URL — агуулгын hash-тай тул файл өөрчлөгдөхөд хөтчийн кэш шинэчлэгдэнэ."""
+    digest = hashlib.sha256((STATIC_DIR / path).read_bytes()).hexdigest()[:10]
+    return f"/static/{path}?v={digest}"
+
+
+@cache
+def flag_url(country_code: str) -> str | None:
+    """Улсын дугуй тугны зураг; байхгүй бол None (загвар emoji туг харуулна)."""
+    path = f"flags/{country_code.lower()}.svg"
+    return f"/static/{path}" if (STATIC_DIR / path).is_file() else None
+
+
+templates.env.globals.update(asset=asset, flag_url=flag_url, format_mnt=format_mnt)
 
 
 def _store(request: Request) -> WebStore:
@@ -22,7 +43,7 @@ def _store(request: Request) -> WebStore:
 
 def _render(request: Request, name: str, status_code: int = 200, **context: Any) -> HTMLResponse:
     store = _store(request)
-    context |= {"shop": store.shop_name, "format_mnt": format_mnt}
+    context |= {"shop": store.shop_name}
     return templates.TemplateResponse(request, name, context, status_code=status_code)
 
 

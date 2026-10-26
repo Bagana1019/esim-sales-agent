@@ -41,7 +41,8 @@ def buy(client, sku, email="bat@example.com"):
 def test_home_lists_esims_and_licenses(client):
     html = client.get("/").text
     assert "Nomad <span>Data</span>" in html and "Дэлхийн дата" in html
-    assert "🇨🇳 Хятад" in html and "VPN-гүйгээр" in html  # улсын тэмдэглэл
+    assert 'src="/static/flags/cn.svg"' in html and "Хятад" in html and "VPN-гүйгээр" in html  # туг, улсын тэмдэглэл
+    assert "≈3,750₮" in html  # харьцуулах хүснэгт: Тайланд 30,000₮ / 8 хоног
     assert "/checkout?sku=JP-7D-5GB" in html and "38,000₮" in html
     assert "Windows 11 Pro" in html and "/checkout?sku=WIN11-PRO" in html
 
@@ -123,3 +124,11 @@ def test_dev_pay_disabled_without_fake_payments(client, monkeypatch):
     order_id, token = re.match(r"/order/(\w+)\?t=(\w+)", order_url).groups()
     monkeypatch.setattr(client.app.state.services, "payments", object())
     assert client.post(f"/dev/pay/{order_id}?t={token}").status_code == 404
+
+
+def test_static_assets_are_served(client):
+    html = client.get("/").text
+    css = re.search(r'href="(/static/site\.css\?v=\w+)"', html).group(1)
+    assert client.get(css).status_code == 200
+    assert client.get("/static/icons/globe.webp").headers["content-type"] == "image/webp"
+    assert client.get("/static/flags/jp.svg").status_code == 200

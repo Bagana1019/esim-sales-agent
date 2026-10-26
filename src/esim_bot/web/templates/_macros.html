@@ -1,0 +1,9 @@
+{# Дугуй тугийн зураг; static/flags-д байхгүй улсад emoji туг #}
+{% macro flag(country) -%}
+{% set url = flag_url(country.code) %}{% if url %}<img src="{{ url }}" alt="" width="64" height="64">{% else %}{{ country.flag }}{% endif %}
+{%- endmacro %}
+
+{# Fluent 3D дүрс тэмдэг (static/icons); эхний дэлгэцийнхийг lazy=false-оор шууд ачаална #}
+{% macro icon(name, cls="", lazy=true) -%}
+<img class="i3d {{ cls }}" src="{{ asset('icons/' ~ name ~ '.webp') }}" alt="" width="128" height="128"{% if lazy %} loading="lazy"{% endif %} decoding="async">
+{%- endmacro %}

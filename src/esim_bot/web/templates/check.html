@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon %}
 {% block title %}Захиалга шалгах — {{ shop }}{% endblock %}
 {% block content %}
 <div class="wrap page narrow">
   <div class="intro">
-    <span class="intro-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><path d="m17 17 4 4M8 11l2 2 4-4"/></svg></span>
+    {{ icon("search", "lg", lazy=false) }}
     <h1>Захиалга шалгах</h1>
     <p class="muted">Захиалгын дугаар болон захиалахдаа бичсэн и-мэйлээ оруулбал захиалгын төлөв, eSIM-ийн QR код, суулгах зааврыг дахин харна.</p>
   </div>

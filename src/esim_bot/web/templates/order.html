@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon %}
 {% block title %}Захиалга #{{ order.id[:8] }} — {{ shop }}{% endblock %}
 {% block content %}
 <div class="wrap page narrow">
@@ -12,7 +13,7 @@
   </div>
 
   {% if pending %}
-    <div class="status wait">Төлбөр хүлээгдэж байна</div>
+    <div class="status wait">{{ icon("hourglass", lazy=false) }}<span>Төлбөр хүлээгдэж байна</span></div>
     <div class="card">
       {% if bank_urls %}
       <b class="card-title">Утаснаасаа банкны аппаар төлөх</b>
@@ -35,7 +36,7 @@
     </form>
     {% endif %}
   {% elif delivered %}
-    <div class="status ok">✅ Төлбөр баталгаажлаа. Захиалгыг {{ order.chat_id }} хаяг руу илгээлээ.</div>
+    <div class="status ok">{{ icon("check", lazy=false) }}<span>Төлбөр баталгаажлаа. Захиалгыг {{ order.chat_id }} хаяг руу илгээлээ.</span></div>
     {% for item in items %}
       {% if item.kind == "esim" %}
       <div class="card">
@@ -61,7 +62,7 @@
       {% endif %}
     {% endfor %}
   {% else %}
-    <div class="status wait">Төлбөр баталгаажлаа. Таны захиалгыг бэлтгэж байна, бэлэн болмогц энд гарч, и-мэйлээр очно.</div>
+    <div class="status wait">{{ icon("hourglass", lazy=false) }}<span>Төлбөр баталгаажлаа. Таны захиалгыг бэлтгэж байна, бэлэн болмогц энд гарч, и-мэйлээр очно.</span></div>
   {% endif %}
 </div>
 

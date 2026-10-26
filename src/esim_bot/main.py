@@ -11,10 +11,12 @@ from typing import Any
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 from .channels.telegram import dispatch, parse_update
 from .config import get_settings
 from .services import Services, build_services
+from .web.routes import STATIC_DIR
 from .web.routes import router as web_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -35,6 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="NomadData", lifespan=lifespan)
 app.include_router(web_router)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 async def _run_logged(fn: Callable[..., Awaitable[Any]], *args: Any) -> None:
