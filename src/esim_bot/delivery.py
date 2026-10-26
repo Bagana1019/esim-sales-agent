@@ -3,7 +3,7 @@ import io
 import qrcode
 
 from .catalog import Catalog
-from .db import EsimProfile, Order
+from .db import EsimProfile, LicenseKey, Order
 
 
 def qr_png(data: str) -> bytes:
@@ -13,7 +13,12 @@ def qr_png(data: str) -> bytes:
     return buf.getvalue()
 
 
-def package_label(catalog: Catalog, sku: str) -> str:
+DEFAULT_ACTIVATION = "Settings → System → Activation → Change product key → түлхүүрээ оруулна."
+
+
+def product_label(catalog: Catalog, sku: str) -> str:
+    if lic := catalog.license(sku):
+        return f"🪟 {lic.name}"
     package = catalog.package(sku)
     if package is None:
         return sku
@@ -23,14 +28,14 @@ def package_label(catalog: Catalog, sku: str) -> str:
 
 
 def order_label(catalog: Catalog, skus: list[str]) -> str:
-    return " + ".join(package_label(catalog, sku) for sku in skus)
+    return " + ".join(product_label(catalog, sku) for sku in skus)
 
 
 def esim_message(catalog: Catalog, order: Order, profile: EsimProfile, index: int = 1, total: int = 1) -> str:
     numbering = f" ({index}/{total})" if total > 1 else ""
     return (
         f"✅ Төлбөр баталгаажлаа! Таны eSIM{numbering} бэлэн боллоо.\n"
-        f"Багц: {package_label(catalog, profile.package_sku)}\n"
+        f"Багц: {product_label(catalog, profile.package_sku)}\n"
         f"Захиалга: #{order.id[:8]}\n\n"
         "📲 Суулгах заавар\n"
         "iPhone: Settings → Cellular (Үүрэн холбоо) → Add eSIM → Use QR Code → дээрх QR-ыг уншуулна.\n"
@@ -43,6 +48,19 @@ def esim_message(catalog: Catalog, order: Order, profile: EsimProfile, index: in
         "• Аялахаасаа өмнө Wi-Fi-тэй газар суулгаарай.\n"
         "• QR кодыг ихэвчлэн нэг л удаа суулгах боломжтой тул eSIM-ээ утаснаасаа устгаж болохгүй.\n"
         "• Очсон газраа энэ eSIM дээр Data Roaming-ийг асааж, мобайл датаг энэ шугам руу шилжүүлнэ."
+    )
+
+
+def license_message(catalog: Catalog, order: Order, key: LicenseKey) -> str:
+    lic = catalog.license(key.package_sku)
+    activation = (lic.activation if lic and lic.activation else DEFAULT_ACTIVATION).strip()
+    return (
+        "✅ Төлбөр баталгаажлаа! Таны лиценз бэлэн боллоо.\n"
+        f"Бүтээгдэхүүн: {product_label(catalog, key.package_sku)}\n"
+        f"Захиалга: #{order.id[:8]}\n\n"
+        f"🔑 Бүтээгдэхүүний түлхүүр:\n{key.product_key}\n\n"
+        f"Идэвхжүүлэх заавар\n{activation}\n\n"
+        "⚠️ Түлхүүрийг бусдад бүү дамжуулаарай. Нэг түлхүүр нэг төхөөрөмжид идэвхждэг."
     )
 
 

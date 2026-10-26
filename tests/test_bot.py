@@ -1,6 +1,6 @@
 async def test_button_flow_to_delivery(bot, channel, qpay):
     await bot.handle_start(channel, "u1")
-    assert channel.button_data() == ["c:CN", "c:KR", "c:JP", "c:TH"]
+    assert channel.button_data() == ["c:CN", "c:KR", "c:JP", "c:TH", "lic"]
 
     await bot.handle_button(channel, "u1", "c:JP")
     assert channel.button_data() == ["p:JP-5D-3GB", "p:JP-7D-5GB", "menu"]
@@ -84,3 +84,25 @@ async def test_bundle_checkout_and_delivery(bot, channel, qpay):
     assert [m["kind"] for m in channel.sent] == ["photo", "text", "photo", "text", "text"]
     assert "eSIM (1/2)" in channel.sent[1]["text"] and "eSIM (2/2)" in channel.sent[3]["text"]
     assert "Танд 2 eSIM ирлээ" in channel.sent[-1]["text"]
+
+
+async def test_license_button_flow(bot, channel, qpay):
+    await bot.handle_button(channel, "u1", "lic")
+    assert channel.button_data() == [
+        "p:WIN11-HOME", "p:WIN11-PRO", "p:WIN11-PRO-WS", "p:WINSRV25-STD", "p:WINSRV25-DC", "menu",
+    ]
+
+    await bot.handle_button(channel, "u1", "p:WIN11-PRO")
+    invoice = channel.sent[-1]
+    assert invoice["kind"] == "photo" and "🪟 Windows 11 Pro" in invoice["text"]
+    assert "Төлөх дүн: 150,000₮" in invoice["text"]
+
+    qpay.mark_all_paid()
+    channel.sent.clear()
+    await bot.handle_button(channel, "u1", invoice["buttons"][-1][0].data)
+
+    [msg] = channel.sent
+    assert msg["kind"] == "text"
+    assert "AAAAA-BBBBB-CCCCC-DDDDD-00001" in msg["text"]
+    assert "Settings → System → Activation" in msg["text"]
+    assert "microsoft.com/software-download/windows11" in msg["text"]

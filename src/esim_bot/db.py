@@ -60,6 +60,18 @@ class EsimProfile(Base):
         return f"LPA:1${self.smdp_address}${self.activation_code}"
 
 
+class LicenseKey(Base):
+    """Урьдчилан худалдаж авсан лицензийн түлхүүрийн сан. order_id хоосон бол ашиглагдаагүй."""
+
+    __tablename__ = "license_keys"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    package_sku: Mapped[str] = mapped_column(String(64), index=True)  # catalog.yaml licenses[].sku
+    product_key: Mapped[str] = mapped_column(String(255), unique=True)
+    order_id: Mapped[str | None] = mapped_column(ForeignKey("orders.id"), index=True)
+    assigned_at: Mapped[datetime | None]
+
+
 class Conversation(Base):
     """LLM-тэй хийсэн ярианы түүх (OpenAI chat форматаар). Зөвхөн нэмж бичнэ."""
 

@@ -12,14 +12,15 @@ from esim_bot.agent.prompts import build_system_prompt
 from esim_bot.bot import SalesBot
 from esim_bot.catalog import Catalog
 from esim_bot.db import Database
-from esim_bot.esim import PoolProvider
-from esim_bot.inventory import import_esims
+from esim_bot.fulfillment import PoolProvider
+from esim_bot.inventory import import_esims, import_licenses
 from esim_bot.orders import OrderService
 from esim_bot.payments.fake import FakeQPay
 
 ROOT = Path(__file__).parent.parent
 
-# Тестийн eSIM сан: JP-5D-3GB ×2, KR-5D-1GBD, TH-8D-15GB, CN-3D-1GB — бусад багц дууссан
+# Тестийн eSIM сан: JP-5D-3GB ×2, KR-5D-1GBD, TH-8D-15GB, CN-3D-1GB — бусад багц дууссан.
+# Лиценз: WIN11-PRO ×1 — бусад лиценз дууссан.
 TEST_STOCK = """package_sku,iccid,smdp_address,activation_code
 JP-5D-3GB,8981000000000000001,rsp.example-provider.com,TEST-ACTIVATION-CODE-0001
 JP-5D-3GB,8981000000000000002,rsp.example-provider.com,TEST-ACTIVATION-CODE-0002
@@ -106,8 +107,11 @@ async def orders(db, catalog, qpay, tmp_path) -> OrderService:
     stock = tmp_path / "stock.csv"
     stock.write_text(TEST_STOCK, encoding="utf-8")
     await import_esims(db, stock)
+    keys = tmp_path / "keys.csv"
+    keys.write_text("package_sku,product_key\nWIN11-PRO,AAAAA-BBBBB-CCCCC-DDDDD-00001\n", encoding="utf-8")
+    await import_licenses(db, keys)
     return OrderService(
-        db, catalog, qpay, PoolProvider(db), public_base_url="https://bot.example", callback_secret="secret"
+        db, catalog, qpay, PoolProvider(db, catalog), public_base_url="https://bot.example", callback_secret="secret"
     )
 
 

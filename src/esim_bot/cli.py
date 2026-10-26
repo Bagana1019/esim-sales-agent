@@ -3,6 +3,7 @@
   uv run esim chat --fake-payments   # терминал дээр ботыг турших (Telegram хэрэггүй)
   uv run esim poll --fake-payments   # Telegram ботыг компьютер дээрээ ажиллуулах (ngrok хэрэггүй)
   uv run esim import-esims esims.csv # eSIM санд нэмэх
+  uv run esim import-licenses keys.csv # лицензийн түлхүүр санд нэмэх
   uv run esim stock                  # үлдэгдэл харах
   uv run esim set-webhook            # Telegram webhook бүртгэх
 """
@@ -17,8 +18,8 @@ import httpx
 from .channels.base import Button, Keyboard
 from .channels.telegram import dispatch, parse_update
 from .config import get_settings, missing_token_hint
-from .db import Database
-from .inventory import import_esims, stock_by_sku
+from .db import Database, EsimProfile, LicenseKey
+from .inventory import import_esims, import_licenses, stock_by_sku
 from .payments.fake import FakeQPay
 from .services import build_services
 
@@ -58,9 +59,8 @@ async def chat(fake_payments: bool) -> None:
     console = ConsoleChannel()
     fake = FakeQPay() if fake_payments else None
     services = await build_services(settings, payments=fake, extra_channels={console.name: console})
-    if fake and not await stock_by_sku(services.db):
-        added = await import_esims(services.db, "data/esims.example.csv")
-        print(f"(Туршилтын {added} eSIM санд нэмэгдлээ)")
+    if fake:
+        await seed_demo_stock(services.db)
 
     print("Товчлуур дарахдаа дугаарыг нь бичнэ. /start — эхнээс, /pay — хуурамч төлбөр төлөх, /quit — гарах")
     chat_id = "local"
@@ -102,9 +102,8 @@ async def poll(fake_payments: bool) -> None:
     try:
         if tg is None:
             raise SystemExit(missing_token_hint("TELEGRAM_BOT_TOKEN"))
-        if fake and not await stock_by_sku(services.db):
-            added = await import_esims(services.db, "data/esims.example.csv")
-            print(f"(Туршилтын {added} eSIM санд нэмэгдлээ)")
+        if fake:
+            await seed_demo_stock(services.db)
         await tg.delete_webhook()  # webhook бүртгэлтэй үед getUpdates ажиллахгүй
         me = await tg.get_me()
         print(f"@{me['username']} ажиллаж байна. Telegram-аас ботоо хайж олоод Start дарна уу.")
@@ -140,10 +139,21 @@ async def poll(fake_payments: bool) -> None:
         await services.aclose()
 
 
-async def import_cmd(path: str) -> None:
+async def seed_demo_stock(db: Database) -> None:
+    """Хуурамч төлбөрийн горимд сан хоосон бол туршилтын eSIM, лиценз нэмнэ."""
+    if not await stock_by_sku(db, EsimProfile):
+        print(f"(Туршилтын {await import_esims(db, 'data/esims.example.csv')} eSIM санд нэмэгдлээ)")
+    if not await stock_by_sku(db, LicenseKey):
+        print(f"(Туршилтын {await import_licenses(db, 'data/licenses.example.csv')} лиценз санд нэмэгдлээ)")
+
+
+async def import_cmd(path: str, licenses: bool = False) -> None:
     db = Database(get_settings().database_url)
     await db.create_all()
-    print(f"{await import_esims(db, path)} eSIM нэмэгдлээ")
+    if licenses:
+        print(f"{await import_licenses(db, path)} лиценз нэмэгдлээ")
+    else:
+        print(f"{await import_esims(db, path)} eSIM нэмэгдлээ")
     await stock_cmd(db)
 
 
@@ -180,6 +190,8 @@ def main() -> None:
     p_poll.add_argument("--fake-payments", action="store_true", help="QPay-ийн оронд хуурамч төлбөр")
     p_import = sub.add_parser("import-esims", help="CSV-ээс eSIM санд нэмэх")
     p_import.add_argument("path")
+    p_import_lic = sub.add_parser("import-licenses", help="CSV-ээс (package_sku,product_key) лиценз санд нэмэх")
+    p_import_lic.add_argument("path")
     sub.add_parser("stock", help="eSIM үлдэгдэл")
     sub.add_parser("set-webhook", help="Telegram webhook бүртгэх")
     args = parser.parse_args()
@@ -193,6 +205,8 @@ def main() -> None:
             print("\nЗогслоо")
     elif args.cmd == "import-esims":
         asyncio.run(import_cmd(args.path))
+    elif args.cmd == "import-licenses":
+        asyncio.run(import_cmd(args.path, licenses=True))
     elif args.cmd == "stock":
         asyncio.run(stock_cmd())
     elif args.cmd == "set-webhook":

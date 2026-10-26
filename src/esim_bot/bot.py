@@ -9,16 +9,18 @@ from .agent.loop import SalesAgent
 from .agent.tools import ToolContext
 from .catalog import Catalog, format_mnt
 from .channels.base import Button, Channel, Keyboard
-from .db import EsimProfile, Order, OrderStatus
-from .delivery import esim_message, multi_esim_note, order_label, package_label, qr_png
+from .db import EsimProfile, LicenseKey, Order, OrderStatus
+from .delivery import esim_message, license_message, multi_esim_note, order_label, product_label, qr_png
+from .fulfillment import Item
 from .orders import OrderService, PaymentOutcome, PaymentResult
 from .payments.qpay import QPayError
 
 log = logging.getLogger(__name__)
 
 WELCOME = (
-    "Сайн байна уу! 👋 Гадаадад аялахдаа роуминг төлөхгүйгээр интернэт хэрэглэх eSIM багц санал болгож байна.\n\n"
-    "Очих улсаа сонгоно уу, эсвэл асуух зүйлээ чөлөөтэй бичээрэй."
+    "Сайн байна уу! 👋 Гадаадад аялахдаа роуминг төлөхгүйгээр интернэт хэрэглэх eSIM багц болон "
+    "Windows лиценз санал болгож байна.\n\n"
+    "eSIM авах бол очих улсаа, лиценз авах бол \"Windows лиценз\"-ийг сонгоно уу. Асуух зүйлээ чөлөөтэй бичиж болно."
 )
 
 
@@ -48,6 +50,8 @@ class SalesBot:
         kind, _, value = data.partition(":")
         if kind == "menu":
             await self.show_countries(channel, chat_id)
+        elif kind == "lic":
+            await self.show_licenses(channel, chat_id)
         elif kind == "c":
             await self.show_packages(channel, chat_id, value)
         elif kind == "p":
@@ -79,7 +83,17 @@ class SalesBot:
 
     async def show_countries(self, channel: Channel, chat_id: str, text: str = "Очих улсаа сонгоно уу:") -> None:
         buttons = [[Button(c.label, data=f"c:{c.code}")] for c in self.catalog.countries]
+        if self.catalog.licenses:
+            buttons.append([Button("🪟 Windows лиценз", data="lic")])
         await channel.send_text(chat_id, text, buttons)
+
+    async def show_licenses(self, channel: Channel, chat_id: str) -> bool:
+        if not self.catalog.licenses:
+            return False
+        buttons: Keyboard = [[Button(lic.title, data=f"p:{lic.sku}")] for lic in self.catalog.licenses]
+        buttons.append([Button("⬅️ Буцах", data="menu")])
+        await channel.send_text(chat_id, "🪟 Windows лиценз - сонгоно уу:", buttons)
+        return True
 
     async def show_packages(self, channel: Channel, chat_id: str, country_code: str) -> bool:
         country = self.catalog.country(country_code)
@@ -95,7 +109,7 @@ class SalesBot:
         try:
             order, invoice = await self.orders.create_order(channel.name, chat_id, skus)
         except ValueError:
-            await channel.send_text(chat_id, "Ийм багц олдсонгүй. Дахин сонгоно уу.")
+            await channel.send_text(chat_id, "Ийм бүтээгдэхүүн олдсонгүй. Дахин сонгоно уу.")
             await self.show_countries(channel, chat_id)
             return None
         except QPayError:
@@ -106,9 +120,9 @@ class SalesBot:
         photo = base64.b64decode(invoice.qr_image_b64) if invoice.qr_image_b64 else qr_png(invoice.qr_text)
         caption = (
             f"🧾 Захиалга #{order.id[:8]}\n"
-            + "".join(f"{package_label(self.catalog, sku)}\n" for sku in skus)
+            + "".join(f"{product_label(self.catalog, sku)}\n" for sku in skus)
             + f"Төлөх дүн: {format_mnt(order.amount_mnt)}\n\n"
-            "Банкны аппаараа QR кодыг уншуулж төлнө үү. Төлбөр орсны дараа eSIM автоматаар энд ирнэ."
+            "Банкны аппаараа QR кодыг уншуулж төлнө үү. Төлбөр орсны дараа захиалга автоматаар энд ирнэ."
         )
         buttons: Keyboard = []
         if invoice.short_url:
@@ -133,25 +147,25 @@ class SalesBot:
                 [[Button("✅ Төлбөр шалгах", data=f"chk:{order.id}")]],
             )
         elif result.outcome == PaymentOutcome.ALREADY_DELIVERED:
-            await self.resend_esim(channel, chat_id, order.id)
+            await self.resend_order(channel, chat_id, order.id)
         elif result.outcome == PaymentOutcome.OUT_OF_STOCK:
             await channel.send_text(chat_id, self._out_of_stock_text())
 
-    async def resend_esim(self, channel: Channel, chat_id: str, order_id: str) -> bool:
+    async def resend_order(self, channel: Channel, chat_id: str, order_id: str) -> bool:
         order = await self.orders.get_for_chat(order_id, channel.name, chat_id)
         if order is None or order.status != OrderStatus.DELIVERED:
             return False
-        profiles = await self.orders.profiles_for(order.id)
-        if not profiles:
+        items = await self.orders.items_for(order.id)
+        if not items:
             return False
-        await self._send_esims(channel, order, profiles)
+        await self._send_items(channel, order, items)
         return True
 
     # --- Дотоод ---
 
     async def _process_payment(self, channel: Channel, order: Order) -> PaymentResult | None:
-        async def deliver(o: Order, profiles: list[EsimProfile]) -> None:
-            await self._send_esims(channel, o, profiles)
+        async def deliver(o: Order, items: list[Item]) -> None:
+            await self._send_items(channel, o, items)
 
         try:
             result = await self.orders.process_payment(order.id, deliver)
@@ -160,23 +174,27 @@ class SalesBot:
             return None
         if result.outcome == PaymentOutcome.OUT_OF_STOCK and result.newly_failed:
             await self.notify_admin(
-                f"⚠️ Захиалга {order.id} төлөгдсөн боловч eSIM дутуу ({order_label(self.catalog, order.package_skus)}). "
-                "Сан руу eSIM нэмээд 'Төлбөр шалгах'-ыг дахин дарахыг харилцагчид хэлнэ үү."
+                f"⚠️ Захиалга {order.id} төлөгдсөн боловч сан дутуу ({order_label(self.catalog, order.package_skus)}). "
+                "Сан руу нэмээд 'Төлбөр шалгах'-ыг дахин дарахыг харилцагчид хэлнэ үү."
             )
         return result
 
-    async def _send_esims(self, channel: Channel, order: Order, profiles: list[EsimProfile]) -> None:
-        total = len(profiles)
-        for i, profile in enumerate(profiles, 1):
+    async def _send_items(self, channel: Channel, order: Order, items: list[Item]) -> None:
+        esims = [i for i in items if isinstance(i, EsimProfile)]
+        total = len(esims)
+        for i, profile in enumerate(esims, 1):
             caption = f"eSIM QR код ({i}/{total})" if total > 1 else "eSIM QR код"
             await channel.send_photo(order.chat_id, qr_png(profile.lpa_string), caption)
             await channel.send_text(order.chat_id, esim_message(self.catalog, order, profile, i, total))
         if total > 1:
             await channel.send_text(order.chat_id, multi_esim_note(total))
+        for key in items:
+            if isinstance(key, LicenseKey):
+                await channel.send_text(order.chat_id, license_message(self.catalog, order, key))
 
     def _out_of_stock_text(self) -> str:
         return (
-            "Төлбөр баталгаажлаа ✅ Таны eSIM-ийг бэлтгэж байна, удахгүй энд илгээнэ. "
+            "Төлбөр баталгаажлаа ✅ Таны захиалгыг бэлтгэж байна, удахгүй энд илгээнэ. "
             "Түр хүлээнэ үү, саатал гарсанд уучлаарай."
         )
 

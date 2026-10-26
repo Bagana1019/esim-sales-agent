@@ -105,10 +105,43 @@ async def test_bundle_waits_until_every_package_is_in_stock(orders, qpay, db):
 
     assert (await orders.process_payment(order.id, deliver)).outcome == PaymentOutcome.OUT_OF_STOCK
     assert deliver.calls == []  # хагас хүргэлт хийхгүй
-    assert [p.package_sku for p in await orders.profiles_for(order.id)] == ["CN-3D-1GB"]  # нөөцлөгдсөн
+    assert [p.package_sku for p in await orders.items_for(order.id)] == ["CN-3D-1GB"]  # нөөцлөгдсөн
 
     async with db.session() as s, s.begin():
         s.add(EsimProfile(package_sku="CN-7D-5GB", iccid="777", smdp_address="smdp.test", activation_code="Y"))
 
     assert (await orders.process_payment(order.id, deliver)).outcome == PaymentOutcome.DELIVERED
     assert deliver.calls == [(order.id, ["777", "8986000000000000001"])]  # захиалгын дарааллаар
+
+
+async def test_license_order_delivers_key(orders, qpay):
+    order, _ = await orders.create_order("test", "u1", ["WIN11-PRO"])
+    assert order.amount_mnt == 150000
+    qpay.mark_all_paid()
+    delivered = []
+
+    async def deliver(o, items):
+        delivered.extend(items)
+
+    assert (await orders.process_payment(order.id, deliver)).outcome == PaymentOutcome.DELIVERED
+    assert [i.product_key for i in delivered] == ["AAAAA-BBBBB-CCCCC-DDDDD-00001"]
+
+
+async def test_mixed_order_esim_and_license(orders, qpay):
+    order, _ = await orders.create_order("test", "u1", ["WIN11-PRO", "TH-8D-15GB"])
+    assert order.amount_mnt == 150000 + 30000
+    qpay.mark_all_paid()
+    delivered = []
+
+    async def capture(o, items):
+        delivered.extend(type(i).__name__ for i in items)
+
+    assert (await orders.process_payment(order.id, capture)).outcome == PaymentOutcome.DELIVERED
+    assert delivered == ["LicenseKey", "EsimProfile"]  # захиалгын дарааллаар
+
+
+async def test_license_out_of_stock(orders, qpay):
+    order, _ = await orders.create_order("test", "u1", ["WIN11-HOME"])  # санд байхгүй
+    qpay.mark_all_paid()
+    result = await orders.process_payment(order.id, DeliverySpy())
+    assert result.outcome == PaymentOutcome.OUT_OF_STOCK

@@ -30,14 +30,34 @@ class Package:
         return f"{self.days} хоног / {self.data} - {format_mnt(self.price_mnt)}"
 
 
+@dataclass(frozen=True)
+class License:
+    """Програм хангамжийн лиценз (бүтээгдэхүүний түлхүүрээр хүргэнэ)."""
+
+    sku: str
+    name: str
+    price_mnt: int
+    description: str = ""  # хэнд тохирох, юу багтах — бот харилцагчид тайлбарлана
+    activation: str = ""  # идэвхжүүлэх заавар — түлхүүрийн хамт илгээнэ
+
+    @property
+    def title(self) -> str:
+        return f"{self.name} - {format_mnt(self.price_mnt)}"
+
+
+Product = Package | License
+
+
 def format_mnt(amount: int) -> str:
     return f"{amount:,}₮"
 
 
 class Catalog:
-    def __init__(self, countries: list[Country], packages: list[Package]):
+    def __init__(self, countries: list[Country], packages: list[Package], licenses: list[License] | None = None):
         self.countries = countries
         self.packages = packages
+        self.licenses = licenses or []
+        self._licenses = {lic.sku: lic for lic in self.licenses}
         self._countries = {
             key.casefold(): c for c in countries for key in (c.code, c.name, *c.aliases)
         }
@@ -49,6 +69,7 @@ class Catalog:
         return cls(
             countries=[Country(**{**c, "aliases": tuple(c.get("aliases", ()))}) for c in raw["countries"]],
             packages=[Package(**p) for p in raw["packages"]],
+            licenses=[License(**lic) for lic in raw.get("licenses", [])],
         )
 
     def country(self, query: str) -> Country | None:
@@ -57,6 +78,13 @@ class Catalog:
 
     def package(self, sku: str) -> Package | None:
         return self._packages.get(sku)
+
+    def license(self, sku: str) -> License | None:
+        return self._licenses.get(sku)
+
+    def product(self, sku: str) -> Product | None:
+        """eSIM багц эсвэл лиценз — sku-аар."""
+        return self._packages.get(sku) or self._licenses.get(sku)
 
     def packages_for(self, country: str) -> list[Package]:
         found = self.country(country)

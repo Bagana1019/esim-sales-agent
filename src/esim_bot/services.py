@@ -11,7 +11,7 @@ from .channels.base import Channel
 from .channels.telegram import TelegramChannel
 from .config import Settings
 from .db import Database
-from .esim import PoolProvider
+from .fulfillment import PoolProvider
 from .orders import OrderService
 from .payments.qpay import PaymentGateway, QPayClient
 
@@ -52,7 +52,7 @@ async def build_services(
         db,
         catalog,
         payments,
-        PoolProvider(db),
+        PoolProvider(db, catalog),
         public_base_url=settings.public_base_url,
         callback_secret=settings.callback_secret,
     )

@@ -10,14 +10,14 @@ from uuid import uuid4
 
 from sqlalchemy import select
 
-from .catalog import Catalog
-from .db import Database, EsimProfile, Order, OrderStatus, utcnow
-from .esim import EsimProvider
+from .catalog import Catalog, License, Product
+from .db import Database, Order, OrderStatus, utcnow
+from .fulfillment import FulfillmentProvider, Item, order_items
 from .payments.qpay import Invoice, PaymentGateway
 
 log = logging.getLogger(__name__)
 
-Deliver = Callable[[Order, list[EsimProfile]], Awaitable[None]]
+Deliver = Callable[[Order, list[Item]], Awaitable[None]]
 
 
 class PaymentOutcome(StrEnum):
@@ -40,7 +40,7 @@ class OrderService:
         db: Database,
         catalog: Catalog,
         qpay: PaymentGateway,
-        esim: EsimProvider,
+        fulfillment: FulfillmentProvider,
         *,
         public_base_url: str,
         callback_secret: str,
@@ -48,7 +48,7 @@ class OrderService:
         self.db = db
         self.catalog = catalog
         self.qpay = qpay
-        self.esim = esim
+        self.fulfillment = fulfillment
         self.public_base_url = public_base_url.rstrip("/")
         self.callback_secret = callback_secret.encode()
         # Нэг процесс доторх давхар боловсруулалтаас сэргийлнэ (callback + "Төлбөр шалгах" зэрэг ирэх)
@@ -67,19 +67,16 @@ class OrderService:
         )
 
     async def create_order(self, channel: str, chat_id: str, skus: list[str]) -> tuple[Order, Invoice]:
-        """Нэг эсвэл хэд хэдэн багцад нэг захиалга, нэг QPay нэхэмжлэх үүсгэнэ."""
-        packages = [self.catalog.package(sku) for sku in skus]
-        if not packages or None in packages:
-            raise ValueError(f"Үл мэдэгдэх багц: {skus}")
-        countries = dict.fromkeys(
-            c.name if (c := self.catalog.country(p.country)) else p.country for p in packages
-        )
+        """Нэг эсвэл хэд хэдэн бүтээгдэхүүнд (eSIM багц, лиценз) нэг захиалга, нэг QPay нэхэмжлэх үүсгэнэ."""
+        products = [self.catalog.product(sku) for sku in skus]
+        if not products or None in products:
+            raise ValueError(f"Үл мэдэгдэх бүтээгдэхүүн: {skus}")
         order = Order(
             id=uuid4().hex,
             channel=channel,
             chat_id=chat_id,
             package_skus=list(skus),
-            amount_mnt=sum(p.price_mnt for p in packages),
+            amount_mnt=sum(p.price_mnt for p in products),
             status=OrderStatus.PENDING,
         )
         async with self.db.session() as s, s.begin():
@@ -87,7 +84,7 @@ class OrderService:
         invoice = await self.qpay.create_invoice(
             order_id=order.id,
             amount=order.amount_mnt,
-            description=f"eSIM {', '.join(countries)} {'+'.join(str(p.days) for p in packages)} хоног",
+            description=", ".join(self._short_name(p) for p in products)[:200],
             callback_url=self.callback_url(order.id),
         )
         order = await self._update(order.id, qpay_invoice_id=invoice.invoice_id)
@@ -113,12 +110,16 @@ class OrderService:
             )
             return list(rows)
 
-    async def profiles_for(self, order_id: str) -> list[EsimProfile]:
-        async with self.db.session() as s:
-            rows = await s.scalars(
-                select(EsimProfile).where(EsimProfile.order_id == order_id).order_by(EsimProfile.id)
-            )
-            return list(rows)
+    def _short_name(self, product: Product) -> str:
+        if isinstance(product, License):
+            return product.name
+        country = self.catalog.country(product.country)
+        return f"eSIM {country.name if country else product.country} {product.days} хоног"
+
+    async def items_for(self, order_id: str) -> list[Item]:
+        """Захиалгад олгогдсон eSIM, лицензүүд (захиалгын дарааллаар)."""
+        order = await self.get(order_id)
+        return await order_items(self.db, order) if order else []
 
     async def process_payment(self, order_id: str, deliver: Deliver) -> PaymentResult:
         """Төлбөрийг QPay-ээс шалгаж, төлөгдсөн бол eSIM олгоод deliver()-ээр илгээнэ.
@@ -145,14 +146,14 @@ class OrderService:
             if order.status == OrderStatus.DELIVERED:
                 return PaymentResult(PaymentOutcome.ALREADY_DELIVERED, order)
 
-            profiles = await self.esim.issue(order)
-            if profiles is None:
+            items = await self.fulfillment.issue(order)
+            if items is None:
                 newly_failed = order.status != OrderStatus.NEEDS_ATTENTION
                 order = await self._update(order_id, status=OrderStatus.NEEDS_ATTENTION)
-                log.error("Order %s: %s багцын eSIM дутуу", order_id, ", ".join(order.package_skus))
+                log.error("Order %s: сан дутуу (%s)", order_id, ", ".join(order.package_skus))
                 return PaymentResult(PaymentOutcome.OUT_OF_STOCK, order, newly_failed=newly_failed)
 
-            await deliver(order, profiles)
+            await deliver(order, items)
             order = await self._update(order_id, status=OrderStatus.DELIVERED, delivered_at=utcnow())
             return PaymentResult(PaymentOutcome.DELIVERED, order)
 

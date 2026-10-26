@@ -92,7 +92,7 @@ async def test_poll_handles_updates_end_to_end(tmp_path, monkeypatch):
     get_settings.cache_clear()
 
     texts = [json.loads(c.request.read())["text"] for c in send.calls]
-    assert any("Очих улсаа сонгоно уу" in t for t in texts)
+    assert any("Сайн байна уу" in t for t in texts)
     assert any("Япон - багцаа сонгоно уу" in t for t in texts)
     assert any(t.startswith("(Туршилт)") for t in texts)
     assert photo.call_count == 1  # нэхэмжлэхийн QR

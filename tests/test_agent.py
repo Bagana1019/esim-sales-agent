@@ -66,7 +66,7 @@ async def test_history_is_append_only(agent, bot, channel, fake_llm, db):
 
 
 async def test_create_payment_tool_sends_invoice(agent, bot, channel, fake_llm):
-    fake_llm.responses = [tool_call("create_payment", {"package_skus": ["KR-5D-1GBD"]}), text("QR илгээлээ.")]
+    fake_llm.responses = [tool_call("create_payment", {"skus": ["KR-5D-1GBD"]}), text("QR илгээлээ.")]
 
     await agent.reply(ToolContext(bot, channel, "u1"), "БНСУ 5 хоногийнхыг авъя")
 
@@ -80,7 +80,7 @@ async def test_bad_tool_input_is_reported_to_model(agent, bot, channel, fake_llm
     fake_llm.responses = [
         make_completion(
             tool_calls=[
-                ("call_1", "create_payment", {"package_skus": ["XX-1"]}),  # байхгүй багц
+                ("call_1", "create_payment", {"skus": ["XX-1"]}),  # байхгүй багц
                 ("call_2", "list_packages", "{not json"),  # эвдэрсэн JSON
                 ("call_3", "list_packages", {"country": "JP"}),  # буруу аргументын нэр
             ]
@@ -163,7 +163,7 @@ def test_system_prompt_contains_catalog(catalog):
 
 async def test_bundle_payment_is_one_invoice(agent, bot, channel, fake_llm):
     fake_llm.responses = [
-        tool_call("create_payment", {"package_skus": ["CN-7D-5GB", "CN-3D-1GB"]}),
+        tool_call("create_payment", {"skus": ["CN-7D-5GB", "CN-3D-1GB"]}),
         text("Нийт 57,000₮-ийн QR илгээлээ."),
     ]
 
@@ -177,3 +177,19 @@ def test_fix_typos():
     from esim_bot.agent.loop import fix_typos
 
     assert fix_typos("Япанд 7 хоногын багц") == "Японд 7 хоногийн багц"
+
+
+async def test_agent_sells_license(agent, bot, channel, fake_llm):
+    fake_llm.responses = [tool_call("create_payment", {"skus": ["WIN11-PRO"]}), text("QR илгээлээ.")]
+
+    await agent.reply(ToolContext(bot, channel, "u1"), "Windows 11 Pro авъя")
+
+    assert "Төлөх дүн: 150,000₮" in channel.sent[-1]["text"]
+
+
+def test_system_prompt_lists_licenses(catalog):
+    from esim_bot.agent.prompts import build_system_prompt
+
+    prompt = build_system_prompt(catalog)
+    assert "🪟 Windows лиценз" in prompt
+    assert "• Windows 11 Pro - 150,000₮ (sku: WIN11-PRO) — Ажил, оффис" in prompt

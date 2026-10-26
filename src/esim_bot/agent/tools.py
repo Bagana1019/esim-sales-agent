@@ -60,34 +60,35 @@ TOOLS: list[dict[str, Any]] = [
         "Тухайн улсын багцуудыг харилцагчид товчлуураар харуулна. Харилцагч товч дарж сонгоно.",
         _COUNTRY_CODE,
     ),
+    _tool("show_license_buttons", "Windows лицензүүдийг харилцагчид товчлуураар харуулна."),
     _tool(
         "create_payment",
-        "Сонгосон багц(ууд)-д нэг захиалга үүсгэж, нийт дүнгийн ганц QPay QR кодыг харилцагчид илгээнэ. "
-        "Хоёр багц хослуулж авах бол хоёуланг нь нэг дуудлагад өгнө. "
-        "Харилцагч тодорхой багц сонгож, авахаа илэрхийлсэн үед л дуудна.",
+        "Сонгосон бүтээгдэхүүн(үүд)-д (eSIM багц, Windows лиценз) нэг захиалга үүсгэж, нийт дүнгийн ганц "
+        "QPay QR кодыг харилцагчид илгээнэ. Хоёр бүтээгдэхүүн хамт авах бол хоёуланг нь нэг дуудлагад өгнө. "
+        "Харилцагч тодорхой бүтээгдэхүүн сонгож, авахаа илэрхийлсэн үед л дуудна.",
         {
-            "package_skus": {
+            "skus": {
                 "type": "array",
                 "items": {"type": "string"},
                 "minItems": 1,
                 "maxItems": 3,
-                "description": "Каталогийн sku-ууд, жишээ нь [\"CN-7D-5GB\", \"CN-3D-1GB\"]",
+                "description": "Каталогийн sku-ууд, жишээ нь [\"CN-7D-5GB\", \"CN-3D-1GB\"] эсвэл [\"WIN11-PRO\"]",
             }
         },
     ),
     _tool("get_my_orders", "Энэ харилцагчийн сүүлийн захиалгууд, тэдгээрийн төлөв."),
     _tool(
-        "resend_esim",
-        "Хүргэгдсэн захиалгын eSIM QR код, суулгах мэдээллийг дахин илгээнэ.",
+        "resend_order",
+        "Хүргэгдсэн захиалгын eSIM QR код эсвэл лицензийн түлхүүрийг дахин илгээнэ.",
         {"order_id": {"type": "string", "description": "get_my_orders-ийн буцаасан order_id"}},
     ),
 ]
 
 _STATUS_TEXT = {
     OrderStatus.PENDING: "төлбөр хүлээгдэж байна",
-    OrderStatus.PAID: "төлөгдсөн, eSIM илгээгдэж байна",
-    OrderStatus.DELIVERED: "eSIM илгээгдсэн",
-    OrderStatus.NEEDS_ATTENTION: "төлөгдсөн, eSIM-ийг оператор гараар илгээнэ",
+    OrderStatus.PAID: "төлөгдсөн, илгээгдэж байна",
+    OrderStatus.DELIVERED: "илгээгдсэн",
+    OrderStatus.NEEDS_ATTENTION: "төлөгдсөн, оператор гараар илгээнэ",
 }
 
 
@@ -110,12 +111,18 @@ async def show_package_buttons(ctx: ToolContext, country_code: str) -> Any:
     return {"shown": True}
 
 
-async def create_payment(ctx: ToolContext, package_skus: list[str]) -> Any:
-    if not 1 <= len(package_skus) <= 3:
-        raise ToolError("Нэг захиалгад 1-3 багц багтана.")
-    if unknown := [sku for sku in package_skus if ctx.bot.catalog.package(sku) is None]:
-        raise ToolError(f"{', '.join(unknown)} гэсэн багц байхгүй. Каталогийн sku-г шалгана уу.")
-    order = await ctx.bot.start_checkout(ctx.channel, ctx.chat_id, package_skus)
+async def show_license_buttons(ctx: ToolContext) -> Any:
+    if not await ctx.bot.show_licenses(ctx.channel, ctx.chat_id):
+        raise ToolError("Одоогоор лиценз зарагдахгүй байна.")
+    return {"shown": True}
+
+
+async def create_payment(ctx: ToolContext, skus: list[str]) -> Any:
+    if not 1 <= len(skus) <= 3:
+        raise ToolError("Нэг захиалгад 1-3 бүтээгдэхүүн багтана.")
+    if unknown := [sku for sku in skus if ctx.bot.catalog.product(sku) is None]:
+        raise ToolError(f"{', '.join(unknown)} гэсэн бүтээгдэхүүн байхгүй. Каталогийн sku-г шалгана уу.")
+    order = await ctx.bot.start_checkout(ctx.channel, ctx.chat_id, skus)
     if order is None:
         raise ToolError("Нэхэмжлэх үүсгэж чадсангүй, төлбөрийн систем түр ажиллахгүй байна.")
     return {"order_id": order.id, "amount": format_mnt(order.amount_mnt), "qr_sent": True}
@@ -126,7 +133,7 @@ async def get_my_orders(ctx: ToolContext) -> Any:
     return [
         {
             "order_id": o.id,
-            "packages": order_label(ctx.bot.catalog, o.package_skus),
+            "products": order_label(ctx.bot.catalog, o.package_skus),
             "amount": format_mnt(o.amount_mnt),
             "status": _STATUS_TEXT.get(o.status, o.status),
             "created_at": o.created_at.strftime("%Y-%m-%d %H:%M UTC"),
@@ -135,8 +142,8 @@ async def get_my_orders(ctx: ToolContext) -> Any:
     ]
 
 
-async def resend_esim(ctx: ToolContext, order_id: str) -> Any:
-    if not await ctx.bot.resend_esim(ctx.channel, ctx.chat_id, order_id):
+async def resend_order(ctx: ToolContext, order_id: str) -> Any:
+    if not await ctx.bot.resend_order(ctx.channel, ctx.chat_id, order_id):
         raise ToolError("Энэ дугаартай хүргэгдсэн захиалга олдсонгүй.")
     return {"sent": True}
 
@@ -145,9 +152,10 @@ _HANDLERS: dict[str, Callable[..., Awaitable[Any]]] = {
     "list_countries": list_countries,
     "list_packages": list_packages,
     "show_package_buttons": show_package_buttons,
+    "show_license_buttons": show_license_buttons,
     "create_payment": create_payment,
     "get_my_orders": get_my_orders,
-    "resend_esim": resend_esim,
+    "resend_order": resend_order,
 }
 
 

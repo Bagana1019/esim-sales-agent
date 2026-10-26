@@ -1,6 +1,6 @@
-# eSIM борлуулалтын агент
+# eSIM болон Windows лицензийн борлуулалтын агент
 
-Гадаад руу аялах хүмүүст eSIM дата багц зардаг Telegram бот. LLM (Groq API) харилцагчийн
+Гадаад руу аялах хүмүүст eSIM дата багц, мөн Windows лиценз зардаг Telegram бот. LLM (Groq API) харилцагчийн
 чөлөөт асуултад хариулж, багц санал болгоно. Төлбөрийг QPay-ээр авч, төлбөр баталгаажмагц eSIM-ийн
 QR код, SM-DP+ хаяг, суулгах зааврыг чатаар автоматаар илгээнэ.
 
@@ -42,16 +42,17 @@ src/esim_bot/
     tools.py         Агентын хэрэгслүүд
     prompts.py       System prompt
   orders.py          Захиалга үүсгэх, төлбөр шалгах, eSIM олгох (idempotent)
-  esim.py            eSIM provider интерфейс + сангаас олгогч (PoolProvider)
+  fulfillment.py     Захиалгад eSIM / лицензийн түлхүүр олгох (PoolProvider)
   payments/qpay.py   QPay v2 клиент
   payments/fake.py   Локал туршилтын хуурамч QPay
   channels/          Telegram суваг (+ ирээдүйд Messenger)
   delivery.py        eSIM QR зураг, суулгах зааврын текст
-  catalog.py         data/catalog.yaml-аас улс, багц унших
+  catalog.py         data/catalog.yaml-аас улс, багц, лиценз унших
   cli.py             Удирдлагын командууд
 data/
-  catalog.yaml       Улс, багц, үнэ
+  catalog.yaml       Улс, eSIM багц, Windows лиценз, үнэ
   esims.example.csv  eSIM сангийн CSV загвар
+  licenses.example.csv  Лицензийн түлхүүрийн CSV загвар (package_sku, product_key)
 ```
 
 ## Эхлүүлэх
@@ -90,6 +91,7 @@ uv run esim chat --fake-payments
 2. eSIM сангаа оруулна:
    ```bash
    uv run esim import-esims data/esims.example.csv
+   uv run esim import-licenses data/licenses.example.csv
    uv run esim stock
    ```
 3. Сервер асааж, webhook бүртгэнэ:
@@ -103,6 +105,13 @@ QPay sandbox-ийн тестийн утгууд (`TEST_MERCHANT` / `123456` / `T
 
 > Хөгжүүлэлтийн явцад өгөгдлийн сангийн бүтэц өөрчлөгдвөл бот "бүтэц хуучирсан" гэж мэдэгдэнэ.
 > Туршилтын өгөгдөл бол `esim.db` файлыг устгаад дахин асаана.
+
+## Windows лиценз
+
+`data/catalog.yaml`-ийн `licenses` хэсэгт бүтээгдэхүүн, үнэ, тайлбар, идэвхжүүлэх зааврыг бичнэ
+(жишээ үнэ — заавал солино). Түлхүүрүүдийг CSV-ээр (`package_sku,product_key`) санд оруулна:
+`uv run esim import-licenses keys.csv`. Төлбөр ормогц түлхүүр, идэвхжүүлэх заавар харилцагчид очно.
+Түлхүүрийг Microsoft-ын албан ёсны дистрибьютер/борлуулагчаас авна.
 
 ## Тест
 
@@ -127,7 +136,7 @@ uv run pytest
 ## Цаашид хийх
 
 - [ ] Facebook Messenger суваг (`channels/messenger.py` — `Channel` интерфейсийг хэрэгжүүлнэ)
-- [ ] eSIM нийлүүлэгчийн API-аар шууд үүсгэх provider (`esim.py`-ийн `EsimProvider`)
+- [ ] eSIM / лицензийн нийлүүлэгчийн API-аар шууд үүсгэх provider (`fulfillment.py`-ийн `FulfillmentProvider`)
 - [ ] Төлөгдөөгүй нэхэмжлэхийг үе үе шалгах background poller (callback ирээгүй тохиолдолд)
 - [ ] Олон instance-аар ажиллуулах бол Postgres + DB түвшний lock (одоо нэг процессын lock)
 - [ ] Админ самбар: захиалга, үлдэгдэл, NEEDS_ATTENTION захиалгууд

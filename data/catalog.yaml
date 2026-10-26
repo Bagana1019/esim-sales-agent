@@ -32,3 +32,39 @@ packages:
   - {sku: JP-5D-3GB,  country: JP, days: 5, data: "Нийт 3GB", price_mnt: 25000}
   - {sku: JP-7D-5GB,  country: JP, days: 7, data: "Нийт 5GB", price_mnt: 38000}
   - {sku: TH-8D-15GB, country: TH, days: 8, data: "Нийт 15GB", price_mnt: 30000}
+
+# Windows лиценз. ҮНЭ НЬ ЖИШЭЭ — бодит худалдан авах үнэдээ тулгуурлан заавал солино уу.
+# Түлхүүрийг Microsoft-ын албан ёсны дистрибьютер/борлуулагчаас авна (OEM/volume түлхүүрийг дангаар
+# нь дахин зарах нь Microsoft-ын лицензийн нөхцөлийг зөрчиж, түлхүүр хүчингүй болох эрсдэлтэй).
+licenses:
+  - sku: WIN11-HOME
+    name: Windows 11 Home
+    price_mnt: 100000
+    description: Гэрийн болон хувийн хэрэглээ, 1 компьютер
+    activation: &win11 |-
+      1. Settings → System → Activation → "Change product key"-г дарна.
+      2. Түлхүүрээ оруулаад Next дарна.
+      Windows 11 суулгах файл хэрэгтэй бол: https://www.microsoft.com/software-download/windows11
+  - sku: WIN11-PRO
+    name: Windows 11 Pro
+    price_mnt: 150000
+    description: Ажил, оффис — BitLocker, Remote Desktop, Hyper-V, домэйнд нэгдэх; 1 компьютер
+    activation: *win11
+  - sku: WIN11-PRO-WS
+    name: Windows 11 Pro for Workstations
+    price_mnt: 250000
+    description: Олон процессор, их RAM-тай хүчирхэг ажлын станц; 1 компьютер
+    activation: *win11
+  - sku: WINSRV25-STD
+    name: Windows Server 2025 Standard (16 core)
+    price_mnt: 1500000
+    description: Сервер, 16 core, 2 виртуал машин
+    activation: &server |-
+      Command Prompt-ийг "Run as administrator"-оор нээгээд:
+      slmgr /ipk <түлхүүр>
+      slmgr /ato
+  - sku: WINSRV25-DC
+    name: Windows Server 2025 Datacenter (16 core)
+    price_mnt: 5000000
+    description: Сервер, 16 core, хязгааргүй виртуал машин
+    activation: *server
