@@ -1,10 +1,12 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # utf-8-sig: Windows Notepad-ийн BOM-той UTF-8 файлыг ч зөв уншина
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8-sig", extra="ignore")
 
     public_base_url: str = "http://localhost:8000"
     database_url: str = "sqlite+aiosqlite:///./esim.db"
@@ -32,6 +34,16 @@ class Settings(BaseSettings):
     qpay_client_secret: str = "123456"
     qpay_invoice_code: str = "TEST_INVOICE"
     callback_secret: str = "change-me"
+
+
+def missing_token_hint(name: str) -> str:
+    """Тохиргоо олдохгүй үед .env файлын байдлыг тайлбарласан мессеж."""
+    env = Path(".env").resolve()
+    if env.exists():
+        return f"{env} файлд {name}= мөрийн ард утга бичигдээгүй байна."
+    if Path(".env.txt").exists():
+        return f"{env} олдсонгүй, харин .env.txt байна. Нэрийг нь солино уу: Rename-Item .env.txt .env"
+    return f"{env} файл олдсонгүй. Үүсгэнэ үү: copy .env.example .env  (Mac/Linux: cp .env.example .env)"
 
 
 @lru_cache

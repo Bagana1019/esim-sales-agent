@@ -16,7 +16,7 @@ import httpx
 
 from .channels.base import Button, Keyboard
 from .channels.telegram import dispatch, parse_update
-from .config import get_settings
+from .config import get_settings, missing_token_hint
 from .db import Database
 from .inventory import import_esims, stock_by_sku
 from .payments.fake import FakeQPay
@@ -101,7 +101,7 @@ async def poll(fake_payments: bool) -> None:
     tasks: set[asyncio.Task[None]] = set()
     try:
         if tg is None:
-            raise SystemExit(".env файлд TELEGRAM_BOT_TOKEN тохируулаагүй байна")
+            raise SystemExit(missing_token_hint("TELEGRAM_BOT_TOKEN"))
         if fake and not await stock_by_sku(services.db):
             added = await import_esims(services.db, "data/esims.example.csv")
             print(f"(Туршилтын {added} eSIM санд нэмэгдлээ)")
@@ -163,7 +163,7 @@ async def set_webhook() -> None:
     services = await build_services(settings)
     try:
         if services.telegram is None:
-            raise SystemExit("TELEGRAM_BOT_TOKEN тохируулаагүй байна")
+            raise SystemExit(missing_token_hint("TELEGRAM_BOT_TOKEN"))
         url = f"{settings.public_base_url.rstrip('/')}/telegram/webhook"
         await services.telegram.set_webhook(url, settings.telegram_webhook_secret)
         print(f"Webhook бүртгэгдлээ: {url}")

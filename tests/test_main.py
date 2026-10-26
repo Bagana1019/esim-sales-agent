@@ -30,3 +30,23 @@ def test_telegram_webhook_requires_secret(client):
 
 def test_qpay_callback_rejects_bad_token(client):
     assert client.get("/qpay/callback", params={"order_id": "o1", "token": "nope"}).status_code == 403
+
+
+def test_env_file_with_bom_and_cyrillic(tmp_path, monkeypatch):
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    env = tmp_path / ".env"
+    env.write_bytes("﻿# Тохиргоо\nTELEGRAM_BOT_TOKEN=123:abc\n".encode("utf-8"))
+    from esim_bot.config import Settings
+
+    assert Settings(_env_file=env).telegram_bot_token == "123:abc"
+
+
+def test_missing_token_hint(tmp_path, monkeypatch):
+    from esim_bot.config import missing_token_hint
+
+    monkeypatch.chdir(tmp_path)
+    assert "олдсонгүй. Үүсгэнэ үү" in missing_token_hint("TELEGRAM_BOT_TOKEN")
+    (tmp_path / ".env.txt").write_text("x")
+    assert "Rename-Item .env.txt .env" in missing_token_hint("TELEGRAM_BOT_TOKEN")
+    (tmp_path / ".env").write_text("TELEGRAM_BOT_TOKEN=\n")
+    assert "утга бичигдээгүй" in missing_token_hint("TELEGRAM_BOT_TOKEN")
