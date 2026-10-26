@@ -157,6 +157,8 @@ def test_system_prompt_contains_catalog(catalog):
     assert "🇨🇳 Хятад (код CN; өөр нэр: China, Hytad, Hyatad, Khyatad, Kitad)" in prompt
     assert "• 7 хоног / Нийт 5GB - 42,000₮ (sku: CN-7D-5GB)" in prompt
     assert "{catalog}" not in prompt
+    assert "  Тэмдэглэл: Манай Хятадын eSIM-ээр Facebook, Instagram, Google, WhatsApp VPN-гүйгээр" in prompt
+    assert prompt.count("Тэмдэглэл:") == 1  # тэмдэглэлгүй улсад мөр нэмэгдэхгүй
 
 
 async def test_bundle_payment_is_one_invoice(agent, bot, channel, fake_llm):

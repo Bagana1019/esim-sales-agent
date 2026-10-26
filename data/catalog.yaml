@@ -1,11 +1,15 @@
 # Улс, багцын жагсаалт (Монголын зах зээлд хамгийн их борлуулагддаг 4 улс).
 # aliases: харилцагч латинаар г.м. бичих нэрс — бот ойлгоход тусална.
+# notes: тухайн улсын талаар бот харилцагчид баттай хэлэх баримт (заавал биш).
 # sku нь eSIM сангийн (esim_profiles.package_sku) утгатай таарах ёстой.
 countries:
   - code: CN
     name: Хятад
     flag: "🇨🇳"
     aliases: [China, Hytad, Hyatad, Khyatad, Kitad]
+    notes: >-
+      Манай Хятадын eSIM-ээр Facebook, Instagram, Google, WhatsApp VPN-гүйгээр шууд ажиллана
+      (Хятадын дотоодын SIM-ээс ялгаатай).
   - code: KR
     name: БНСУ
     flag: "🇰🇷"

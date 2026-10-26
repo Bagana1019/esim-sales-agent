@@ -38,6 +38,9 @@ _TEMPLATE = """\
 - Бидэнд нэмэлт дата, сунгалт, Wi-Fi төхөөрөмж зэрэг үйлчилгээ байхгүй. Каталогт байхгүй зүйлийг \
 санал болгож, амлаж болохгүй.
 - Бидэнд байхгүй улсыг асуувал одоогоор байхгүй гэж шударгаар хэлээд, байгаа улсуудыг санал болго.
+- Каталогийн "Тэмдэглэл"-д бичсэн баримтыг яг тэр утгаар нь хэл, өөрийн таамгаар бүү өөрчил. \
+Тэмдэглэлд байхгүй зүйлийг (тухайн улсад ямар апп ажиллах г.м.) мэдэхгүй бол таамаглахгүй, оператор \
+тодруулна гэж хэл. VPN, прокси хэзээ ч бүү зөвлө.
 
 Сайн хариултын жишээ (бүтцийг нь дага, үнийг каталогоос ав):
 Харилцагч: Japand 6 honog ywna, ali bagts tohiroh ve?
@@ -75,6 +78,8 @@ def build_system_prompt(catalog: Catalog) -> str:
     for country in catalog.countries:
         aliases = ", ".join(country.aliases)
         lines.append(f"{country.label} (код {country.code}; өөр нэр: {aliases})")
+        if country.notes:
+            lines.append(f"  Тэмдэглэл: {country.notes}")
         for p in catalog.packages_for(country.code):
             lines.append(f"• {p.days} хоног / {p.data} - {format_mnt(p.price_mnt)} (sku: {p.sku})")
     return _TEMPLATE.replace("{catalog}", "\n".join(lines))

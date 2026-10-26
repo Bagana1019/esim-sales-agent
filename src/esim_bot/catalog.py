@@ -10,6 +10,7 @@ class Country:
     name: str
     flag: str
     aliases: tuple[str, ...] = ()  # харилцагчийн бичиж болох өөр нэрс (латинаар г.м.)
+    notes: str = ""  # бот харилцагчид баттай хэлэх баримт (жишээ нь ямар апп ажиллах)
 
     @property
     def label(self) -> str:
