@@ -19,6 +19,15 @@ from esim_bot.payments.fake import FakeQPay
 
 ROOT = Path(__file__).parent.parent
 
+# Тестийн eSIM сан: JP-5D-3GB ×2, KR-5D-1GBD, TH-8D-15GB, CN-3D-1GB — бусад багц дууссан
+TEST_STOCK = """package_sku,iccid,smdp_address,activation_code
+JP-5D-3GB,8981000000000000001,rsp.example-provider.com,TEST-ACTIVATION-CODE-0001
+JP-5D-3GB,8981000000000000002,rsp.example-provider.com,TEST-ACTIVATION-CODE-0002
+KR-5D-1GBD,8982000000000000001,rsp.example-provider.com,TEST-ACTIVATION-CODE-0003
+TH-8D-15GB,8966000000000000001,rsp.example-provider.com,TEST-ACTIVATION-CODE-0004
+CN-3D-1GB,8986000000000000001,rsp.example-provider.com,TEST-ACTIVATION-CODE-0005
+"""
+
 
 class RecordingChannel:
     name = "test"
@@ -93,8 +102,10 @@ def qpay() -> FakeQPay:
 
 
 @pytest.fixture
-async def orders(db, catalog, qpay) -> OrderService:
-    await import_esims(db, ROOT / "data" / "esims.example.csv")
+async def orders(db, catalog, qpay, tmp_path) -> OrderService:
+    stock = tmp_path / "stock.csv"
+    stock.write_text(TEST_STOCK, encoding="utf-8")
+    await import_esims(db, stock)
     return OrderService(
         db, catalog, qpay, PoolProvider(db), public_base_url="https://bot.example", callback_secret="secret"
     )

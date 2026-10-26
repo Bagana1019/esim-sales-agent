@@ -21,6 +21,16 @@ DISABLED_REPLY = "Уучлаарай, одоогоор зөвхөн цэсээр
 STEP_LIMIT_REPLY = "Уучлаарай, хүсэлтийг гүйцээж чадсангүй. Арай өөрөөр асууж үзнэ үү эсвэл /start дарна уу."
 
 
+# Загвар prompt-ын дүрмийг үл тоон давтдаг алдаанууд
+_TYPOS = {"хоногын": "хоногийн", "Япанд": "Японд", "Япан ": "Япон ", "Япанаас": "Японоос"}
+
+
+def fix_typos(text: str) -> str:
+    for wrong, right in _TYPOS.items():
+        text = text.replace(wrong, right)
+    return text
+
+
 def to_plain_text(text: str) -> str:
     """Загвар prompt-ыг үл тоон Markdown бичвэл чатад ** # ` тэмдэгтүүд харагдахгүйгээр цэвэрлэнэ."""
     text = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: m.group(1) or m.group(2), text, flags=re.S)
@@ -89,7 +99,7 @@ class SalesAgent:
                 ]
             messages.append(assistant)
             if not tool_calls:
-                return to_plain_text(message.content or "")
+                return fix_typos(to_plain_text(message.content or ""))
             for tc in tool_calls:
                 content = await self._call_tool(ctx, tc.function.name, tc.function.arguments)
                 messages.append({"role": "tool", "tool_call_id": tc.id, "content": content})

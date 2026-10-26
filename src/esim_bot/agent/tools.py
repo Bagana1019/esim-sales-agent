@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..catalog import format_mnt
 from ..db import OrderStatus
-from ..delivery import package_label
+from ..delivery import order_label
 
 if TYPE_CHECKING:
     from ..bot import SalesBot
@@ -62,9 +62,18 @@ TOOLS: list[dict[str, Any]] = [
     ),
     _tool(
         "create_payment",
-        "Сонгосон багцад захиалга үүсгэж, QPay төлбөрийн QR кодыг харилцагчид илгээнэ. "
+        "Сонгосон багц(ууд)-д нэг захиалга үүсгэж, нийт дүнгийн ганц QPay QR кодыг харилцагчид илгээнэ. "
+        "Хоёр багц хослуулж авах бол хоёуланг нь нэг дуудлагад өгнө. "
         "Харилцагч тодорхой багц сонгож, авахаа илэрхийлсэн үед л дуудна.",
-        {"package_sku": {"type": "string", "description": "list_packages-ийн буцаасан sku"}},
+        {
+            "package_skus": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "maxItems": 3,
+                "description": "Каталогийн sku-ууд, жишээ нь [\"CN-7D-5GB\", \"CN-3D-1GB\"]",
+            }
+        },
     ),
     _tool("get_my_orders", "Энэ харилцагчийн сүүлийн захиалгууд, тэдгээрийн төлөв."),
     _tool(
@@ -101,10 +110,12 @@ async def show_package_buttons(ctx: ToolContext, country_code: str) -> Any:
     return {"shown": True}
 
 
-async def create_payment(ctx: ToolContext, package_sku: str) -> Any:
-    if ctx.bot.catalog.package(package_sku) is None:
-        raise ToolError(f"{package_sku} гэсэн багц байхгүй. list_packages-оор sku-г шалгана уу.")
-    order = await ctx.bot.start_checkout(ctx.channel, ctx.chat_id, package_sku)
+async def create_payment(ctx: ToolContext, package_skus: list[str]) -> Any:
+    if not 1 <= len(package_skus) <= 3:
+        raise ToolError("Нэг захиалгад 1-3 багц багтана.")
+    if unknown := [sku for sku in package_skus if ctx.bot.catalog.package(sku) is None]:
+        raise ToolError(f"{', '.join(unknown)} гэсэн багц байхгүй. Каталогийн sku-г шалгана уу.")
+    order = await ctx.bot.start_checkout(ctx.channel, ctx.chat_id, package_skus)
     if order is None:
         raise ToolError("Нэхэмжлэх үүсгэж чадсангүй, төлбөрийн систем түр ажиллахгүй байна.")
     return {"order_id": order.id, "amount": format_mnt(order.amount_mnt), "qr_sent": True}
@@ -115,7 +126,7 @@ async def get_my_orders(ctx: ToolContext) -> Any:
     return [
         {
             "order_id": o.id,
-            "package": package_label(ctx.bot.catalog, o.package_sku),
+            "packages": order_label(ctx.bot.catalog, o.package_skus),
             "amount": format_mnt(o.amount_mnt),
             "status": _STATUS_TEXT.get(o.status, o.status),
             "created_at": o.created_at.strftime("%Y-%m-%d %H:%M UTC"),

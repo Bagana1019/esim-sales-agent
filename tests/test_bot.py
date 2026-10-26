@@ -26,7 +26,7 @@ async def test_button_flow_to_delivery(bot, channel, qpay):
 
 
 async def test_qpay_callback_delivers(bot, channel, qpay, orders):
-    order = await bot.start_checkout(channel, "u1", "TH-8D-15GB")
+    order = await bot.start_checkout(channel, "u1", ["TH-8D-15GB"])
     qpay.mark_all_paid()
     channel.sent.clear()
 
@@ -38,13 +38,13 @@ async def test_qpay_callback_delivers(bot, channel, qpay, orders):
 
 
 async def test_cannot_check_someone_elses_order(bot, channel):
-    order = await bot.start_checkout(channel, "u1", "TH-8D-15GB")
+    order = await bot.start_checkout(channel, "u1", ["TH-8D-15GB"])
     await bot.handle_button(channel, "intruder", f"chk:{order.id}")
     assert channel.sent[-1] == {"kind": "text", "chat_id": "intruder", "text": "Захиалга олдсонгүй.", "buttons": []}
 
 
 async def test_out_of_stock_notifies_admin_once(bot, channel, qpay):
-    order = await bot.start_checkout(channel, "u1", "CN-7D-5GB")
+    order = await bot.start_checkout(channel, "u1", ["CN-7D-5GB"])
     qpay.mark_all_paid()
     channel.sent.clear()
 
@@ -68,3 +68,19 @@ def test_catalog_understands_latin_country_names(catalog):
 async def test_agent_can_show_buttons_by_latin_name(bot, channel):
     assert await bot.show_packages(channel, "u1", "Hytad")
     assert channel.button_data() == ["p:CN-3D-1GB", "p:CN-5D-3GB", "p:CN-7D-5GB", "menu"]
+
+
+async def test_bundle_checkout_and_delivery(bot, channel, qpay):
+    order = await bot.start_checkout(channel, "u1", ["JP-5D-3GB", "CN-3D-1GB"])
+    invoice = channel.sent[-1]
+    assert invoice["kind"] == "photo"
+    assert "Япон - 5 хоног" in invoice["text"] and "Хятад - 3 хоног" in invoice["text"]
+    assert "Төлөх дүн: 40,000₮" in invoice["text"]
+
+    qpay.mark_all_paid()
+    channel.sent.clear()
+    await bot.handle_button(channel, "u1", f"chk:{order.id}")
+
+    assert [m["kind"] for m in channel.sent] == ["photo", "text", "photo", "text", "text"]
+    assert "eSIM (1/2)" in channel.sent[1]["text"] and "eSIM (2/2)" in channel.sent[3]["text"]
+    assert "Танд 2 eSIM ирлээ" in channel.sent[-1]["text"]

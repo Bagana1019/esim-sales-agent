@@ -2,7 +2,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String
+from sqlalchemy import JSON, DateTime, ForeignKey, String, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -29,7 +30,8 @@ class Order(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     channel: Mapped[str] = mapped_column(String(16))
     chat_id: Mapped[str] = mapped_column(String(64), index=True)
-    package_sku: Mapped[str] = mapped_column(String(64))
+    # Нэг захиалгад нэг эсвэл хэд хэдэн багц (жишээ нь 7 хоног + 3 хоног) — нэг QR-аар төлнө
+    package_skus: Mapped[list[Any]]
     amount_mnt: Mapped[int]
     status: Mapped[str] = mapped_column(String(32), default=OrderStatus.PENDING)
     qpay_invoice_id: Mapped[str | None] = mapped_column(String(64))
@@ -49,7 +51,7 @@ class EsimProfile(Base):
     iccid: Mapped[str] = mapped_column(String(32), unique=True)
     smdp_address: Mapped[str] = mapped_column(String(255))
     activation_code: Mapped[str] = mapped_column(String(255))
-    order_id: Mapped[str | None] = mapped_column(ForeignKey("orders.id"), unique=True)
+    order_id: Mapped[str | None] = mapped_column(ForeignKey("orders.id"), index=True)
     assigned_at: Mapped[datetime | None]
 
     @property
@@ -79,6 +81,15 @@ class Database:
     async def create_all(self) -> None:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        # create_all хуучин хүснэгтийг өөрчилдөггүй — бүтэц өөрчлөгдсөн бол ойлгомжтой мессеж өгнө
+        try:
+            async with self.session() as s:
+                await s.execute(select(Order.package_skus).limit(1))
+        except OperationalError:
+            raise SystemExit(
+                f"Өгөгдлийн сангийн бүтэц хуучирсан байна ({self.engine.url.database}). "
+                "Туршилтын өгөгдөл бол файлыг устгаад дахин асаана уу."
+            ) from None
 
     async def dispose(self) -> None:
         await self.engine.dispose()

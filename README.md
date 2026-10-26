@@ -101,6 +101,9 @@ uv run esim chat --fake-payments
 QPay sandbox-ийн тестийн утгууд (`TEST_MERCHANT` / `123456` / `TEST_INVOICE`) `.env.example`-д
 бий. Production-д QPay-тэй гэрээ байгуулж авсан client_id, secret, invoice_code-оо тавина.
 
+> Хөгжүүлэлтийн явцад өгөгдлийн сангийн бүтэц өөрчлөгдвөл бот "бүтэц хуучирсан" гэж мэдэгдэнэ.
+> Туршилтын өгөгдөл бол `esim.db` файлыг устгаад дахин асаана.
+
 ## Тест
 
 ```bash

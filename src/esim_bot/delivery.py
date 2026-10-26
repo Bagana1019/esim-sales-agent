@@ -22,10 +22,15 @@ def package_label(catalog: Catalog, sku: str) -> str:
     return f"{prefix} - {package.days} хоног / {package.data}"
 
 
-def esim_message(catalog: Catalog, order: Order, profile: EsimProfile) -> str:
+def order_label(catalog: Catalog, skus: list[str]) -> str:
+    return " + ".join(package_label(catalog, sku) for sku in skus)
+
+
+def esim_message(catalog: Catalog, order: Order, profile: EsimProfile, index: int = 1, total: int = 1) -> str:
+    numbering = f" ({index}/{total})" if total > 1 else ""
     return (
-        "✅ Төлбөр баталгаажлаа! Таны eSIM бэлэн боллоо.\n"
-        f"Багц: {package_label(catalog, order.package_sku)}\n"
+        f"✅ Төлбөр баталгаажлаа! Таны eSIM{numbering} бэлэн боллоо.\n"
+        f"Багц: {package_label(catalog, profile.package_sku)}\n"
         f"Захиалга: #{order.id[:8]}\n\n"
         "📲 Суулгах заавар\n"
         "iPhone: Settings → Cellular (Үүрэн холбоо) → Add eSIM → Use QR Code → дээрх QR-ыг уншуулна.\n"
@@ -38,4 +43,12 @@ def esim_message(catalog: Catalog, order: Order, profile: EsimProfile) -> str:
         "• Аялахаасаа өмнө Wi-Fi-тэй газар суулгаарай.\n"
         "• QR кодыг ихэвчлэн нэг л удаа суулгах боломжтой тул eSIM-ээ утаснаасаа устгаж болохгүй.\n"
         "• Очсон газраа энэ eSIM дээр Data Roaming-ийг асааж, мобайл датаг энэ шугам руу шилжүүлнэ."
+    )
+
+
+def multi_esim_note(total: int) -> str:
+    return (
+        f"ℹ️ Танд {total} eSIM ирлээ. Бүгдийг нь аялахаасаа өмнө суулгаарай. Эхлээд 1-р eSIM-ээр "
+        "мобайл дата ашиглаж, хугацаа эсвэл дата нь дуусахад Settings → Cellular (Mobile data) хэсгээс "
+        "мобайл датаг дараагийн eSIM руу шилжүүлнэ."
     )

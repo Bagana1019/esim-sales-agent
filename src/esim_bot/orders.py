@@ -17,7 +17,7 @@ from .payments.qpay import Invoice, PaymentGateway
 
 log = logging.getLogger(__name__)
 
-Deliver = Callable[[Order, EsimProfile], Awaitable[None]]
+Deliver = Callable[[Order, list[EsimProfile]], Awaitable[None]]
 
 
 class PaymentOutcome(StrEnum):
@@ -66,25 +66,28 @@ class OrderService:
             f"?order_id={order_id}&token={self.callback_token(order_id)}"
         )
 
-    async def create_order(self, channel: str, chat_id: str, sku: str) -> tuple[Order, Invoice]:
-        package = self.catalog.package(sku)
-        if package is None:
-            raise ValueError(f"Үл мэдэгдэх багц: {sku}")
-        country = self.catalog.country(package.country)
+    async def create_order(self, channel: str, chat_id: str, skus: list[str]) -> tuple[Order, Invoice]:
+        """Нэг эсвэл хэд хэдэн багцад нэг захиалга, нэг QPay нэхэмжлэх үүсгэнэ."""
+        packages = [self.catalog.package(sku) for sku in skus]
+        if not packages or None in packages:
+            raise ValueError(f"Үл мэдэгдэх багц: {skus}")
+        countries = dict.fromkeys(
+            c.name if (c := self.catalog.country(p.country)) else p.country for p in packages
+        )
         order = Order(
             id=uuid4().hex,
             channel=channel,
             chat_id=chat_id,
-            package_sku=sku,
-            amount_mnt=package.price_mnt,
+            package_skus=list(skus),
+            amount_mnt=sum(p.price_mnt for p in packages),
             status=OrderStatus.PENDING,
         )
         async with self.db.session() as s, s.begin():
             s.add(order)
         invoice = await self.qpay.create_invoice(
             order_id=order.id,
-            amount=package.price_mnt,
-            description=f"eSIM {country.name if country else package.country} {package.days} хоног",
+            amount=order.amount_mnt,
+            description=f"eSIM {', '.join(countries)} {'+'.join(str(p.days) for p in packages)} хоног",
             callback_url=self.callback_url(order.id),
         )
         order = await self._update(order.id, qpay_invoice_id=invoice.invoice_id)
@@ -110,9 +113,12 @@ class OrderService:
             )
             return list(rows)
 
-    async def profile_for(self, order_id: str) -> EsimProfile | None:
+    async def profiles_for(self, order_id: str) -> list[EsimProfile]:
         async with self.db.session() as s:
-            return await s.scalar(select(EsimProfile).where(EsimProfile.order_id == order_id))
+            rows = await s.scalars(
+                select(EsimProfile).where(EsimProfile.order_id == order_id).order_by(EsimProfile.id)
+            )
+            return list(rows)
 
     async def process_payment(self, order_id: str, deliver: Deliver) -> PaymentResult:
         """Төлбөрийг QPay-ээс шалгаж, төлөгдсөн бол eSIM олгоод deliver()-ээр илгээнэ.
@@ -139,14 +145,14 @@ class OrderService:
             if order.status == OrderStatus.DELIVERED:
                 return PaymentResult(PaymentOutcome.ALREADY_DELIVERED, order)
 
-            profile = await self.esim.issue(order)
-            if profile is None:
+            profiles = await self.esim.issue(order)
+            if profiles is None:
                 newly_failed = order.status != OrderStatus.NEEDS_ATTENTION
                 order = await self._update(order_id, status=OrderStatus.NEEDS_ATTENTION)
-                log.error("Order %s: %s багцын eSIM дууссан", order_id, order.package_sku)
+                log.error("Order %s: %s багцын eSIM дутуу", order_id, ", ".join(order.package_skus))
                 return PaymentResult(PaymentOutcome.OUT_OF_STOCK, order, newly_failed=newly_failed)
 
-            await deliver(order, profile)
+            await deliver(order, profiles)
             order = await self._update(order_id, status=OrderStatus.DELIVERED, delivered_at=utcnow())
             return PaymentResult(PaymentOutcome.DELIVERED, order)
 
