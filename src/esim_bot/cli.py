@@ -18,7 +18,7 @@ import httpx
 from .channels.base import Button, Keyboard
 from .channels.telegram import dispatch, parse_update
 from .config import get_settings, missing_token_hint
-from .db import Database, EsimProfile, LicenseKey
+from .db import Database
 from .inventory import import_esims, import_licenses, stock_by_sku
 from .payments.fake import FakeQPay
 from .services import build_services
@@ -59,8 +59,7 @@ async def chat(fake_payments: bool) -> None:
     console = ConsoleChannel()
     fake = FakeQPay() if fake_payments else None
     services = await build_services(settings, payments=fake, extra_channels={console.name: console})
-    if fake:
-        await seed_demo_stock(services.db)
+    fake = services.payments if isinstance(services.payments, FakeQPay) else None  # FAKE_PAYMENTS=true ч байж болно
 
     print("Товчлуур дарахдаа дугаарыг нь бичнэ. /start — эхнээс, /pay — хуурамч төлбөр төлөх, /quit — гарах")
     chat_id = "local"
@@ -97,13 +96,12 @@ async def poll(fake_payments: bool) -> None:
     settings = get_settings()
     fake = FakeQPay() if fake_payments else None
     services = await build_services(settings, payments=fake)
+    fake = services.payments if isinstance(services.payments, FakeQPay) else None
     tg = services.telegram
     tasks: set[asyncio.Task[None]] = set()
     try:
         if tg is None:
             raise SystemExit(missing_token_hint("TELEGRAM_BOT_TOKEN"))
-        if fake:
-            await seed_demo_stock(services.db)
         await tg.delete_webhook()  # webhook бүртгэлтэй үед getUpdates ажиллахгүй
         me = await tg.get_me()
         print(f"@{me['username']} ажиллаж байна. Telegram-аас ботоо хайж олоод Start дарна уу.")
@@ -137,14 +135,6 @@ async def poll(fake_payments: bool) -> None:
         if tasks:  # эхэлсэн хариултуудыг дуусгаж байж хаана
             await asyncio.wait(tasks, timeout=15)
         await services.aclose()
-
-
-async def seed_demo_stock(db: Database) -> None:
-    """Хуурамч төлбөрийн горимд сан хоосон бол туршилтын eSIM, лиценз нэмнэ."""
-    if not await stock_by_sku(db, EsimProfile):
-        print(f"(Туршилтын {await import_esims(db, 'data/esims.example.csv')} eSIM санд нэмэгдлээ)")
-    if not await stock_by_sku(db, LicenseKey):
-        print(f"(Туршилтын {await import_licenses(db, 'data/licenses.example.csv')} лиценз санд нэмэгдлээ)")
 
 
 async def import_cmd(path: str, licenses: bool = False) -> None:

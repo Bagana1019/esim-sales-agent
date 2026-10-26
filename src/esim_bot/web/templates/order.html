@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Захиалга #{{ order.id[:8] }} — {{ shop }}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1>Захиалга #{{ order.id[:8] }}</h1>
+  <div class="card">
+    {% for label, product in lines %}
+    <div class="row"><span>{{ label }}</span><span>{{ format_mnt(product.price_mnt) if product else "" }}</span></div>
+    {% endfor %}
+    <div class="row"><b>Нийт</b><b>{{ format_mnt(order.amount_mnt) }}</b></div>
+  </div>
+
+  {% if pending %}
+    <div class="status wait">Төлбөр хүлээгдэж байна</div>
+    <div class="card">
+      {% if bank_urls %}
+      <b>Утаснаасаа банкны аппаар төлөх</b>
+      <div class="banks">
+        {% for b in bank_urls %}
+        <a class="bank" href="{{ b.link }}">{% if b.logo %}<img src="{{ b.logo }}" alt="">{% endif %}{{ b.description or b.name }}</a>
+        {% endfor %}
+      </div>
+      <p class="muted">Эсвэл банкны аппаараа доорх QR кодыг уншуулна уу.</p>
+      {% else %}
+      <b>Банкны аппаараа QR кодыг уншуулж төлнө үү</b>
+      {% endif %}
+      {% if payment_qr %}<img class="qr" src="{{ payment_qr }}" alt="QPay QR код">{% endif %}
+      {% if short_url %}<a class="btn secondary" href="{{ short_url }}">QPay хуудсаар төлөх</a>{% endif %}
+      <p class="muted">Төлбөр ормогц энэ хуудас автоматаар шинэчлэгдэж, захиалга {{ order.chat_id }} хаяг руу очно.</p>
+    </div>
+    {% if fake_payments %}
+    <form method="post" action="/dev/pay/{{ order.id }}?t={{ token }}">
+      <button class="btn secondary" type="submit">(Туршилт) Төлсөнд тооцох</button>
+    </form>
+    {% endif %}
+  {% elif delivered %}
+    <div class="status ok">✅ Төлбөр баталгаажлаа. Захиалгыг {{ order.chat_id }} хаяг руу илгээлээ.</div>
+    {% for item in items %}
+      {% if item.kind == "esim" %}
+      <div class="card" style="margin-bottom:12px">
+        <b>{{ item.label }}{% if items|length > 1 %} ({{ loop.index }}/{{ items|length }}){% endif %}</b>
+        <img class="qr" src="{{ item.qr }}" alt="eSIM QR код">
+        <p><b>Суулгах:</b> iPhone — Settings → Cellular → Add eSIM → Use QR Code.
+        Android — Settings → Connections → SIM manager → Add eSIM → Scan QR code.</p>
+        <p class="muted">QR уншуулж чадахгүй бол гараар оруулна:</p>
+        <div class="row"><span>SM-DP+ хаяг</span><span class="mono">{{ item.smdp }}</span></div>
+        <div class="row"><span>Идэвхжүүлэх код</span><span class="mono">{{ item.code }}</span></div>
+        <div class="row"><span>ICCID</span><span class="mono">{{ item.iccid }}</span></div>
+        <p class="muted">Аялахаасаа өмнө Wi-Fi-тэй газар суулгаарай. QR кодыг ихэвчлэн нэг л удаа суулгах боломжтой тул eSIM-ээ утаснаасаа бүү устгаарай.
+        Очсон газраа энэ eSIM дээр Data Roaming-ийг асаана.</p>
+      </div>
+      {% else %}
+      <div class="card" style="margin-bottom:12px">
+        <b>{{ item.label }}</b>
+        <p class="muted">Бүтээгдэхүүний түлхүүр:</p>
+        <div class="key mono">{{ item.key }}</div>
+        <p><b>Идэвхжүүлэх заавар</b></p>
+        <pre class="steps">{{ item.activation }}</pre>
+      </div>
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    <div class="status wait">Төлбөр баталгаажлаа. Таны захиалгыг бэлтгэж байна, бэлэн болмогц энд гарч, и-мэйлээр очно.</div>
+  {% endif %}
+</div>
+
+{% if not delivered %}
+<script>
+  // Төлбөр/хүргэлтийн төлвийг шалгаж, өөрчлөгдвөл хуудсыг шинэчилнэ (30 минут хүртэл)
+  (function () {
+    var started = Date.now(), current = {{ order.status|tojson }};
+    function poll() {
+      if (Date.now() - started > 30 * 60 * 1000) return;
+      fetch("/api/orders/{{ order.id }}/status?t={{ token }}")
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d.status !== current) location.reload(); else setTimeout(poll, 5000); })
+        .catch(function () { setTimeout(poll, 10000); });
+    }
+    setTimeout(poll, 4000);
+  })();
+</script>
+{% endif %}
+{% endblock %}

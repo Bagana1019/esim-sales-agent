@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ shop }} — аялалын eSIM, Windows лиценз{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Аялахдаа роуминг төлөхгүй интернэт</h1>
+  <p>Очих улсынхаа eSIM-ийг одоо аваад, газардмагц интернэтэд холбогдоорой. Төлбөр ормогц QR код и-мэйлээр очно.</p>
+  <div class="chips">
+    {% for country, packages in groups %}<a class="chip" href="#{{ country.code }}">{{ country.label }}</a>{% endfor %}
+    {% if licenses %}<a class="chip" href="#windows">🪟 Windows</a>{% endif %}
+  </div>
+</section>
+
+<div id="esim"></div>
+{% for country, packages in groups %}
+<h2 id="{{ country.code }}">{{ country.label }}</h2>
+{% if country.notes %}<div class="note">{{ country.notes }}</div>{% endif %}
+<div class="grid">
+  {% for p in packages %}
+  <div class="card product">
+    <div class="days">{{ p.days }} хоног</div>
+    <div class="data">{{ p.data }}</div>
+    <div class="price">{{ format_mnt(p.price_mnt) }}</div>
+    <a class="btn" href="/checkout?sku={{ p.sku }}">Авах</a>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+{% if licenses %}
+<h2 id="windows">🪟 Windows лиценз</h2>
+<div class="grid">
+  {% for lic in licenses %}
+  <div class="card product">
+    <div class="data">{{ lic.name }}</div>
+    {% if lic.description %}<div class="days">{{ lic.description }}</div>{% endif %}
+    <div class="price">{{ format_mnt(lic.price_mnt) }}</div>
+    <a class="btn" href="/checkout?sku={{ lic.sku }}">Авах</a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2>Түгээмэл асуулт</h2>
+<details><summary>Миний утас eSIM дэмжих үү?</summary>
+  <p>iPhone XS/XR ба түүнээс хойшх, Samsung Galaxy S20 ба түүнээс хойшх, Google Pixel 3 ба түүнээс хойшх ихэнх загвар дэмждэг.
+  Шалгах арга: утсандаа <b>*#06#</b> залгахад EID дугаар гарч ирвэл дэмждэг. Утас operator-lock-гүй байх ёстой.</p></details>
+<details><summary>Захиалга хэрхэн ирэх вэ?</summary>
+  <p>Төлбөр ормогц eSIM-ийн QR код (эсвэл лицензийн түлхүүр), суулгах зааврын хамт захиалгын хуудсанд гарч, таны и-мэйл рүү очно.</p></details>
+<details><summary>eSIM-ээ хэзээ суулгах вэ?</summary>
+  <p>Аялахаасаа өмнө Wi-Fi-тэй газар суулгаад, очсон газраа тухайн eSIM дээр Data Roaming-ийг асаана.</p></details>
+{% endblock %}

@@ -11,6 +11,17 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost:8000"
     database_url: str = "sqlite+aiosqlite:///./esim.db"
     catalog_path: str = "data/catalog.yaml"
+    shop_name: str = "eSIM Mongolia"
+    # Локал туршилт: QPay-ийн оронд хуурамч төлбөр, туршилтын eSIM/лиценз автоматаар санд орно
+    fake_payments: bool = False
+
+    # И-мэйл (вэб захиалгын хүргэлт). smtp_host хоосон бол и-мэйлийг email_outbox_dir-д .eml болгон хадгална
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "eSIM Mongolia <no-reply@example.com>"
+    email_outbox_dir: str = "out/emails"
 
     # LLM (Groq, OpenAI-compatible API)
     groq_api_key: str | None = None

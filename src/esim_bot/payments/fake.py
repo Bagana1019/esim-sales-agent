@@ -20,6 +20,10 @@ class FakeQPay:
             return f"pay-{invoice_id}"
         return None
 
+    def mark_paid(self, invoice_id: str) -> None:
+        if invoice_id in self.invoices:
+            self.paid.add(invoice_id)
+
     def mark_all_paid(self) -> int:
         unpaid = set(self.invoices) - self.paid
         self.paid |= unpaid

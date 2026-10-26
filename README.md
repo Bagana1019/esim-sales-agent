@@ -35,7 +35,9 @@ QPay → /qpay/callback  (эсвэл харилцагч "Төлбөр шалга
 
 ```
 src/esim_bot/
-  main.py            FastAPI: /telegram/webhook, /qpay/callback, /health
+  main.py            FastAPI: вэб дэлгүүр, /telegram/webhook, /qpay/callback, /health
+  web/               Вэб дэлгүүр: хуудсууд (templates/), захиалга, и-мэйлээр хүргэх
+  mailer.py          И-мэйл илгээх (SMTP, эсвэл локалд .eml файл)
   bot.py             Сувгаас хамааралгүй ботын логик (товчлуурын урсгал, төлбөр, хүргэлт)
   agent/
     loop.py          LLM agent loop (Groq, OpenAI-compatible Chat Completions + tool calling)
@@ -85,7 +87,22 @@ uv run esim chat --fake-payments
 "Төлбөр шалгах" товч QPay-ээс шууд шалгадаг тул ажиллана. Терминалд гарах `chat_id=...`-г
 `ADMIN_CHAT_ID`-д бичвэл админы мэдэгдэл тэр чат руу очно.
 
-### 3. Сервер дээр (webhook + QPay callback)
+### 3. Вэб дэлгүүр (компьютер дээрээ)
+
+```bash
+# PowerShell: $env:FAKE_PAYMENTS="true"; uv run uvicorn esim_bot.main:app --port 8000
+FAKE_PAYMENTS=true uv run uvicorn esim_bot.main:app --port 8000
+```
+
+Браузерт http://localhost:8000 нээнэ. Бүтээгдэхүүн сонгож, и-мэйлээ оруулаад захиалгын хуудсан дээрх
+"(Туршилт) Төлсөнд тооцох" товчийг дарвал eSIM/лиценз хуудсанд гарна. SMTP тохируулаагүй бол
+харилцагчид очих и-мэйл `out/emails/*.eml` файлд хадгалагдана (Outlook, Mail-ээр нээж үзнэ).
+
+Вэб захиалгын урсгал: нүүр хуудас → `/checkout` (и-мэйл) → `/order/{id}?t=...` (QPay QR, утсан
+дээр банкны апп-ын товч) → төлбөр ормогц хуудас өөрөө шинэчлэгдэж eSIM QR / лицензийн түлхүүр гарна,
+мөн и-мэйлээр очно. Захиалгын холбоос нууц түлхүүртэй тул зөвхөн харилцагч өөрөө нээнэ.
+
+### 4. Сервер дээр (webhook + QPay callback)
 
 1. Серверээ гадагш нээнэ (жишээ нь `ngrok http 8000`) — URL-аа `PUBLIC_BASE_URL`-д бичнэ.
 2. eSIM сангаа оруулна:

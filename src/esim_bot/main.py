@@ -15,6 +15,7 @@ from fastapi.responses import PlainTextResponse
 from .channels.telegram import dispatch, parse_update
 from .config import get_settings
 from .services import Services, build_services
+from .web.routes import router as web_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)  # хүсэлтийн URL-д bot token орсон байдаг
@@ -32,7 +33,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await app.state.services.aclose()
 
 
-app = FastAPI(title="eSIM sales agent", lifespan=lifespan)
+app = FastAPI(title="eSIM Mongolia", lifespan=lifespan)
+app.include_router(web_router)
 
 
 async def _run_logged(fn: Callable[..., Awaitable[Any]], *args: Any) -> None:
@@ -70,6 +72,10 @@ async def qpay_callback(order_id: str, token: str, request: Request, background:
     services: Services = request.app.state.services
     if not services.orders.verify_callback_token(order_id, token):
         raise HTTPException(status_code=403)
-    # Callback-д итгэхгүй: on_payment_notification QPay-ээс төлбөрийг дахин шалгана
-    background.add_task(_run_logged, services.bot.on_payment_notification, order_id)
+    # Callback-д итгэхгүй: аль аль нь QPay-ээс төлбөрийг дахин шалгана
+    order = await services.orders.get(order_id)
+    if order is not None and order.channel == services.web.channel:
+        background.add_task(_run_logged, services.web.process, order_id)
+    else:
+        background.add_task(_run_logged, services.bot.on_payment_notification, order_id)
     return PlainTextResponse("SUCCESS")

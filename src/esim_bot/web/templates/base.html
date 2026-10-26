@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ shop }}{% endblock %}</title>
+<style>
+  :root {
+    --bg: #f5f7fb; --card: #ffffff; --ink: #0f1b33; --muted: #5b6780; --line: #e2e7f0;
+    --brand: #1f5eff; --brand-dark: #1747c4; --brand-soft: #e8efff; --ok: #12805c; --ok-soft: #e6f6ef;
+    --warn: #a15c00; --warn-soft: #fff4e0; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink); line-height: 1.5;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  a { color: var(--brand); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+  header { background: var(--ink); color: #fff; }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .logo { color: #fff; text-decoration: none; font-weight: 700; font-size: 20px; letter-spacing: -0.01em; }
+  .logo span { color: #8fb0ff; }
+  header nav a { color: #c9d4ee; text-decoration: none; margin-left: 18px; font-size: 15px; }
+  main.wrap { padding-top: 24px; padding-bottom: 48px; }
+  h1 { font-size: clamp(26px, 5vw, 38px); line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.02em; }
+  h2 { font-size: 22px; margin: 36px 0 12px; }
+  .muted { color: var(--muted); }
+  .hero { background: linear-gradient(135deg, #10204a, #1f5eff); color: #fff; border-radius: var(--radius); padding: 32px 24px; }
+  .hero p { color: #dbe5ff; margin: 0; font-size: 17px; max-width: 560px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip { background: rgba(255,255,255,.14); color: #fff; padding: 6px 12px; border-radius: 999px; text-decoration: none; font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  .product { display: flex; flex-direction: column; gap: 6px; }
+  .product .days { font-size: 14px; color: var(--muted); }
+  .product .data { font-size: 20px; font-weight: 700; }
+  .product .price { font-size: 18px; font-weight: 600; margin-top: auto; padding-top: 8px; }
+  .note { background: var(--brand-soft); color: #173a8f; border-radius: 10px; padding: 10px 14px; margin: -2px 0 12px; font-size: 15px; }
+  .btn {
+    display: inline-block; background: var(--brand); color: #fff; text-decoration: none; text-align: center;
+    border: 0; border-radius: 10px; padding: 11px 16px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%;
+  }
+  .btn:hover { background: var(--brand-dark); }
+  .btn.secondary { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+  .narrow { max-width: 520px; margin: 0 auto; }
+  .narrow form { margin-top: 12px; }
+  label { display: block; font-weight: 600; margin: 16px 0 6px; }
+  input[type=email] { width: 100%; padding: 12px; font-size: 16px; border: 1px solid var(--line); border-radius: 10px; }
+  .error { background: #fdecec; color: #a11d1d; border-radius: 10px; padding: 10px 14px; margin-top: 12px; }
+  .status { border-radius: 10px; padding: 12px 14px; font-weight: 600; margin: 12px 0; }
+  .status.ok { background: var(--ok-soft); color: var(--ok); }
+  .status.wait { background: var(--warn-soft); color: var(--warn); }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .row > :first-child { flex-shrink: 0; }
+  .row .mono { text-align: right; }
+  .row:last-child { border-bottom: 0; }
+  .qr { display: block; width: 240px; max-width: 100%; margin: 12px auto; image-rendering: pixelated; }
+  .banks { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 12px; }
+  .bank { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-decoration: none; color: var(--ink); font-size: 14px; }
+  .bank img { width: 28px; height: 28px; border-radius: 6px; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-all; }
+  .key { font-size: 18px; background: var(--bg); border: 1px dashed var(--line); border-radius: 10px; padding: 12px; text-align: center; }
+  pre.steps { white-space: pre-wrap; font-family: inherit; background: var(--bg); border-radius: 10px; padding: 12px; margin: 8px 0 0; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; }
+  summary { font-weight: 600; cursor: pointer; }
+  footer { color: var(--muted); font-size: 14px; padding: 24px 16px 40px; border-top: 1px solid var(--line); }
+  @media (min-width: 720px) { .hero { padding: 48px 40px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">📶 eSIM <span>Mongolia</span></a>
+    <nav><a href="/#esim">eSIM</a><a href="/#windows">Windows</a></nav>
+  </div>
+</header>
+<main class="wrap">
+{% block content %}{% endblock %}
+</main>
+<footer class="wrap">© {{ shop }} · Төлбөрийг QPay-ээр хүлээн авна · Захиалга төлбөр ормогц и-мэйлээр очно</footer>
+</body>
+</html>

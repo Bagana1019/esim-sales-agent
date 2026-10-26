@@ -49,3 +49,11 @@ async def stock_by_sku(db: Database, *models: type[EsimProfile | LicenseKey]) ->
             )
             stock.update({sku: count for sku, count in rows})
     return stock
+
+
+async def seed_demo_stock(db: Database) -> None:
+    """Хуурамч төлбөрийн горимд сан хоосон бол туршилтын eSIM, лиценз нэмнэ."""
+    if not await stock_by_sku(db, EsimProfile):
+        print(f"(Туршилтын {await import_esims(db, 'data/esims.example.csv')} eSIM санд нэмэгдлээ)")
+    if not await stock_by_sku(db, LicenseKey):
+        print(f"(Туршилтын {await import_licenses(db, 'data/licenses.example.csv')} лиценз санд нэмэгдлээ)")

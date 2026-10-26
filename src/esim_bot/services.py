@@ -12,8 +12,12 @@ from .channels.telegram import TelegramChannel
 from .config import Settings
 from .db import Database
 from .fulfillment import PoolProvider
+from .inventory import seed_demo_stock
+from .mailer import FileMailer, Mailer, SmtpMailer
 from .orders import OrderService
+from .payments.fake import FakeQPay
 from .payments.qpay import PaymentGateway, QPayClient
+from .web.store import WebStore
 
 
 @dataclass
@@ -22,6 +26,8 @@ class Services:
     db: Database
     orders: OrderService
     bot: SalesBot
+    web: WebStore
+    payments: PaymentGateway
     telegram: TelegramChannel | None
 
     async def aclose(self) -> None:
@@ -40,6 +46,10 @@ async def build_services(
     await db.create_all()
     catalog = Catalog.load(settings.catalog_path)
 
+    if payments is None and settings.fake_payments:
+        payments = FakeQPay()
+    if isinstance(payments, FakeQPay):
+        await seed_demo_stock(db)
     if payments is None:
         payments = QPayClient(
             http,
@@ -75,4 +85,20 @@ async def build_services(
     admin = ("telegram", settings.admin_chat_id) if telegram and settings.admin_chat_id else None
 
     bot = SalesBot(catalog, orders, agent, channels, admin)
-    return Services(http=http, db=db, orders=orders, bot=bot, telegram=telegram)
+
+    mailer: Mailer
+    if settings.smtp_host:
+        mailer = SmtpMailer(
+            settings.smtp_host, settings.smtp_port, settings.smtp_username, settings.smtp_password, settings.smtp_from
+        )
+    else:
+        mailer = FileMailer(settings.email_outbox_dir, settings.smtp_from)
+    web = WebStore(
+        catalog,
+        orders,
+        mailer,
+        shop_name=settings.shop_name,
+        public_base_url=settings.public_base_url,
+        notify_admin=bot.notify_admin,
+    )
+    return Services(http=http, db=db, orders=orders, bot=bot, web=web, payments=payments, telegram=telegram)

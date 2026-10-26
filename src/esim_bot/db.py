@@ -29,13 +29,16 @@ class Order(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     channel: Mapped[str] = mapped_column(String(16))
-    chat_id: Mapped[str] = mapped_column(String(64), index=True)
+    # Суваг доторх хүлээн авагч: Telegram-д chat id, вэбэд харилцагчийн и-мэйл
+    chat_id: Mapped[str] = mapped_column(String(255), index=True)
     # Нэг захиалгад нэг эсвэл хэд хэдэн багц (жишээ нь 7 хоног + 3 хоног) — нэг QR-аар төлнө
     package_skus: Mapped[list[Any]]
     amount_mnt: Mapped[int]
     status: Mapped[str] = mapped_column(String(32), default=OrderStatus.PENDING)
     qpay_invoice_id: Mapped[str | None] = mapped_column(String(64))
     qpay_payment_id: Mapped[str | None] = mapped_column(String(64))
+    # Вэб хуудсанд QR, банкны апп-ын холбоосыг дахин харуулахад: {qr_text, short_url, urls}
+    payment_info: Mapped[dict[str, Any] | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     paid_at: Mapped[datetime | None]
     delivered_at: Mapped[datetime | None]
@@ -96,7 +99,7 @@ class Database:
         # create_all хуучин хүснэгтийг өөрчилдөггүй — бүтэц өөрчлөгдсөн бол ойлгомжтой мессеж өгнө
         try:
             async with self.session() as s:
-                await s.execute(select(Order.package_skus).limit(1))
+                await s.execute(select(Order.package_skus, Order.payment_info).limit(1))
         except OperationalError:
             raise SystemExit(
                 f"Өгөгдлийн сангийн бүтэц хуучирсан байна ({self.engine.url.database}). "

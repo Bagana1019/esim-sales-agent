@@ -60,6 +60,13 @@ class OrderService:
     def verify_callback_token(self, order_id: str, token: str) -> bool:
         return hmac.compare_digest(self.callback_token(order_id), token)
 
+    def access_token(self, order_id: str) -> str:
+        """Вэб дээр захиалгын хуудсыг (eSIM, лицензийн түлхүүр) нээх нууц түлхүүр."""
+        return hmac.new(self.callback_secret, f"view:{order_id}".encode(), hashlib.sha256).hexdigest()[:32]
+
+    def verify_access_token(self, order_id: str, token: str) -> bool:
+        return hmac.compare_digest(self.access_token(order_id), token)
+
     def callback_url(self, order_id: str) -> str:
         return (
             f"{self.public_base_url}/qpay/callback"
@@ -87,7 +94,11 @@ class OrderService:
             description=", ".join(self._short_name(p) for p in products)[:200],
             callback_url=self.callback_url(order.id),
         )
-        order = await self._update(order.id, qpay_invoice_id=invoice.invoice_id)
+        order = await self._update(
+            order.id,
+            qpay_invoice_id=invoice.invoice_id,
+            payment_info={"qr_text": invoice.qr_text, "short_url": invoice.short_url, "urls": invoice.bank_urls},
+        )
         return order, invoice
 
     async def get(self, order_id: str) -> Order | None:
