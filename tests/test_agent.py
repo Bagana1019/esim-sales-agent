@@ -142,3 +142,10 @@ async def test_start_resets_conversation(agent, bot, channel, fake_llm):
     await agent.reply(ctx, "Дахин сайн уу")
 
     assert fake_llm.calls[-1]["messages"][1:] == [{"role": "user", "content": "Дахин сайн уу"}]
+
+
+def test_to_plain_text_strips_markdown():
+    from esim_bot.agent.loop import to_plain_text
+
+    raw = "## Багцууд\n* **7 хоног / Нийт 5GB** – 38,000 ₮\n- `JP` __тохиромжтой__\n\n5 * 2 = 10"
+    assert to_plain_text(raw) == "Багцууд\n• 7 хоног / Нийт 5GB – 38,000 ₮\n• JP тохиромжтой\n\n5 * 2 = 10"

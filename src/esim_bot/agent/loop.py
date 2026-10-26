@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from datetime import timedelta
 from typing import Any
 
@@ -19,6 +20,14 @@ ERROR_REPLY = "Уучлаарай, түр алдаа гарлаа. Дахин б
 BUSY_REPLY = "Уучлаарай, яг одоо ачаалал ихтэй байна. Хэсэг хүлээгээд дахин бичнэ үү эсвэл /start дарж цэснээс сонгоорой."
 DISABLED_REPLY = "Уучлаарай, одоогоор зөвхөн цэсээр үйлчилж байна. /start дарж улсаа сонгоорой."
 STEP_LIMIT_REPLY = "Уучлаарай, хүсэлтийг гүйцээж чадсангүй. Арай өөрөөр асууж үзнэ үү эсвэл /start дарна уу."
+
+
+def to_plain_text(text: str) -> str:
+    """Загвар prompt-ыг үл тоон Markdown бичвэл чатад ** # ` тэмдэгтүүд харагдахгүйгээр цэвэрлэнэ."""
+    text = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: m.group(1) or m.group(2), text, flags=re.S)
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.M)
+    text = re.sub(r"^\s*[*-]\s+", "• ", text, flags=re.M)
+    return re.sub(r"`([^`\n]+)`", r"\1", text).strip()
 
 
 class SalesAgent:
@@ -79,7 +88,7 @@ class SalesAgent:
                 ]
             messages.append(assistant)
             if not tool_calls:
-                return (message.content or "").strip()
+                return to_plain_text(message.content or "")
             for tc in tool_calls:
                 content = await self._call_tool(ctx, tc.function.name, tc.function.arguments)
                 messages.append({"role": "tool", "tool_call_id": tc.id, "content": content})
