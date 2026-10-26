@@ -18,7 +18,7 @@ packages:
   - {sku: CN-3D-1GB,  country: CN, days: 3, data: "Нийт 1GB", price_mnt: 15000}
   - {sku: CN-5D-3GB,  country: CN, days: 5, data: "Нийт 3GB", price_mnt: 28000}
   - {sku: CN-7D-5GB,  country: CN, days: 7, data: "Нийт 5GB", price_mnt: 42000}
-  - {sku: KR-5D-1GBD, country: KR, days: 5, data: "Өдөрт 1GB, дараа нь хурд хязгаартай хязгааргүй", price_mnt: 25000}
+  - {sku: KR-5D-1GBD, country: KR, days: 5, data: "Өдөрт 1GB + Хязгааргүй", price_mnt: 25000}
   - {sku: KR-7D-10GB, country: KR, days: 7, data: "Нийт 10GB", price_mnt: 40000}
   - {sku: JP-5D-3GB,  country: JP, days: 5, data: "Нийт 3GB", price_mnt: 25000}
   - {sku: JP-7D-5GB,  country: JP, days: 7, data: "Нийт 5GB", price_mnt: 38000}
