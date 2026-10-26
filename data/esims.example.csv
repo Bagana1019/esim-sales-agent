@@ -1,0 +1,5 @@
+package_sku,iccid,smdp_address,activation_code
+JP-5D-2GB,8981000000000000001,rsp.example-provider.com,TEST-ACTIVATION-CODE-0001
+JP-5D-2GB,8981000000000000002,rsp.example-provider.com,TEST-ACTIVATION-CODE-0002
+KR-5D-2GB,8982000000000000001,rsp.example-provider.com,TEST-ACTIVATION-CODE-0003
+TH-7D-3GB,8966000000000000001,rsp.example-provider.com,TEST-ACTIVATION-CODE-0004

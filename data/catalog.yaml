@@ -1,0 +1,22 @@
+# Улс, багцын жагсаалт. Үнэ, багцууд нь ЖИШЭЭ — өөрийн бодит үнээр солино уу.
+# sku нь eSIM сангийн (esim_profiles.package_sku) утгатай таарах ёстой.
+countries:
+  - code: JP
+    name: Япон
+    flag: "🇯🇵"
+  - code: KR
+    name: Солонгос
+    flag: "🇰🇷"
+  - code: TH
+    name: Тайланд
+    flag: "🇹🇭"
+
+packages:
+  - {sku: JP-5D-2GB,  country: JP, days: 5,  data: "Өдөрт 2GB", price_mnt: 25000}
+  - {sku: JP-10D-2GB, country: JP, days: 10, data: "Өдөрт 2GB", price_mnt: 42000}
+  - {sku: JP-15D-20GB, country: JP, days: 15, data: "Нийт 20GB", price_mnt: 55000}
+  - {sku: KR-5D-2GB,  country: KR, days: 5,  data: "Өдөрт 2GB", price_mnt: 22000}
+  - {sku: KR-10D-2GB, country: KR, days: 10, data: "Өдөрт 2GB", price_mnt: 38000}
+  - {sku: KR-30D-UNL, country: KR, days: 30, data: "Хязгааргүй", price_mnt: 79000}
+  - {sku: TH-7D-3GB,  country: TH, days: 7,  data: "Өдөрт 3GB", price_mnt: 24000}
+  - {sku: TH-15D-30GB, country: TH, days: 15, data: "Нийт 30GB", price_mnt: 45000}

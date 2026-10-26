@@ -1,0 +1,184 @@
+"""Сувгаас хамааралгүй ботын логик: товчлуурын урсгал + чөлөөт текстийг агент руу дамжуулах."""
+
+import asyncio
+import base64
+import logging
+from collections import defaultdict
+
+from .agent.loop import SalesAgent
+from .agent.tools import ToolContext
+from .catalog import Catalog, format_mnt
+from .channels.base import Button, Channel, Keyboard
+from .db import EsimProfile, Order, OrderStatus
+from .delivery import esim_message, package_label, qr_png
+from .orders import OrderService, PaymentOutcome, PaymentResult
+from .payments.qpay import QPayError
+
+log = logging.getLogger(__name__)
+
+WELCOME = (
+    "Сайн байна уу! 👋 Гадаадад аялахдаа роуминг төлөхгүйгээр интернэт хэрэглэх eSIM багц санал болгож байна.\n\n"
+    "Очих улсаа сонгоно уу, эсвэл асуух зүйлээ чөлөөтэй бичээрэй."
+)
+
+
+class SalesBot:
+    def __init__(
+        self,
+        catalog: Catalog,
+        orders: OrderService,
+        agent: SalesAgent,
+        channels: dict[str, Channel],
+        admin: tuple[str, str] | None = None,  # (channel, chat_id)
+    ):
+        self.catalog = catalog
+        self.orders = orders
+        self.agent = agent
+        self.channels = channels
+        self.admin = admin
+        self._chat_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+    # --- Оролт ---
+
+    async def handle_start(self, channel: Channel, chat_id: str) -> None:
+        await self.agent.reset(channel.name, chat_id)
+        await self.show_countries(channel, chat_id, WELCOME)
+
+    async def handle_button(self, channel: Channel, chat_id: str, data: str) -> None:
+        kind, _, value = data.partition(":")
+        if kind == "menu":
+            await self.show_countries(channel, chat_id)
+        elif kind == "c":
+            await self.show_packages(channel, chat_id, value)
+        elif kind == "p":
+            await self.start_checkout(channel, chat_id, value)
+        elif kind == "chk":
+            await self.check_payment(channel, chat_id, value)
+        else:
+            log.warning("Unknown button data: %s", data)
+
+    async def handle_text(self, channel: Channel, chat_id: str, text: str) -> None:
+        # Нэг харилцагчийн мессежүүдийг дараалуулж боловсруулна (ярианы түүх зөрөхгүй)
+        async with self._chat_locks[f"{channel.name}:{chat_id}"]:
+            reply = await self.agent.reply(ToolContext(self, channel, chat_id), text)
+        if reply:
+            await channel.send_text(chat_id, reply)
+
+    async def on_payment_notification(self, order_id: str) -> None:
+        """QPay callback ирэхэд дуудагдана."""
+        order = await self.orders.get(order_id)
+        if order is None or order.channel not in self.channels:
+            log.warning("Callback for unknown order %s", order_id)
+            return
+        channel = self.channels[order.channel]
+        result = await self._process_payment(channel, order)
+        if result and result.outcome == PaymentOutcome.OUT_OF_STOCK and result.newly_failed:
+            await channel.send_text(order.chat_id, self._out_of_stock_text())
+
+    # --- Урсгалын алхмууд (агентын хэрэгслүүд ч эдгээрийг ашиглана) ---
+
+    async def show_countries(self, channel: Channel, chat_id: str, text: str = "Очих улсаа сонгоно уу:") -> None:
+        buttons = [[Button(c.label, data=f"c:{c.code}")] for c in self.catalog.countries]
+        await channel.send_text(chat_id, text, buttons)
+
+    async def show_packages(self, channel: Channel, chat_id: str, country_code: str) -> bool:
+        country = self.catalog.country(country_code)
+        packages = self.catalog.packages_for(country_code)
+        if country is None or not packages:
+            return False
+        buttons: Keyboard = [[Button(p.title, data=f"p:{p.sku}")] for p in packages]
+        buttons.append([Button("⬅️ Улс солих", data="menu")])
+        await channel.send_text(chat_id, f"{country.label} - багцаа сонгоно уу:", buttons)
+        return True
+
+    async def start_checkout(self, channel: Channel, chat_id: str, sku: str) -> Order | None:
+        try:
+            order, invoice = await self.orders.create_order(channel.name, chat_id, sku)
+        except ValueError:
+            await channel.send_text(chat_id, "Ийм багц олдсонгүй. Дахин сонгоно уу.")
+            await self.show_countries(channel, chat_id)
+            return None
+        except QPayError:
+            log.exception("Invoice creation failed")
+            await channel.send_text(chat_id, "Төлбөрийн систем түр ажиллахгүй байна. Хэсэг хугацааны дараа дахин оролдоно уу.")
+            return None
+
+        photo = base64.b64decode(invoice.qr_image_b64) if invoice.qr_image_b64 else qr_png(invoice.qr_text)
+        caption = (
+            f"🧾 Захиалга #{order.id[:8]}\n"
+            f"{package_label(self.catalog, sku)}\n"
+            f"Төлөх дүн: {format_mnt(order.amount_mnt)}\n\n"
+            "Банкны аппаараа QR кодыг уншуулж төлнө үү. Төлбөр орсны дараа eSIM автоматаар энд ирнэ."
+        )
+        buttons: Keyboard = []
+        if invoice.short_url:
+            # Telegram-ын товч зөвхөн https холбоос зөвшөөрдөг тул банкны deeplink-үүдийн оронд QPay-ийн хуудсыг нээнэ
+            buttons.append([Button("📱 Банкны аппаар төлөх", url=invoice.short_url)])
+        buttons.append([Button("✅ Төлбөр шалгах", data=f"chk:{order.id}")])
+        await channel.send_photo(chat_id, photo, caption, buttons)
+        return order
+
+    async def check_payment(self, channel: Channel, chat_id: str, order_id: str) -> None:
+        order = await self.orders.get_for_chat(order_id, channel.name, chat_id)
+        if order is None:
+            await channel.send_text(chat_id, "Захиалга олдсонгүй.")
+            return
+        result = await self._process_payment(channel, order)
+        if result is None:
+            await channel.send_text(chat_id, "Төлбөр шалгах үед алдаа гарлаа. Хэсэг хугацааны дараа дахин оролдоно уу.")
+        elif result.outcome == PaymentOutcome.NOT_PAID:
+            await channel.send_text(
+                chat_id,
+                "Төлбөр хараахан орж ирээгүй байна. Төлсний дараа хэдэн секунд хүлээгээд дахин шалгана уу.",
+                [[Button("✅ Төлбөр шалгах", data=f"chk:{order.id}")]],
+            )
+        elif result.outcome == PaymentOutcome.ALREADY_DELIVERED:
+            await self.resend_esim(channel, chat_id, order.id)
+        elif result.outcome == PaymentOutcome.OUT_OF_STOCK:
+            await channel.send_text(chat_id, self._out_of_stock_text())
+
+    async def resend_esim(self, channel: Channel, chat_id: str, order_id: str) -> bool:
+        order = await self.orders.get_for_chat(order_id, channel.name, chat_id)
+        if order is None or order.status != OrderStatus.DELIVERED:
+            return False
+        profile = await self.orders.profile_for(order.id)
+        if profile is None:
+            return False
+        await self._send_esim(channel, order, profile)
+        return True
+
+    # --- Дотоод ---
+
+    async def _process_payment(self, channel: Channel, order: Order) -> PaymentResult | None:
+        async def deliver(o: Order, profile: EsimProfile) -> None:
+            await self._send_esim(channel, o, profile)
+
+        try:
+            result = await self.orders.process_payment(order.id, deliver)
+        except QPayError:
+            log.exception("Payment check failed for %s", order.id)
+            return None
+        if result.outcome == PaymentOutcome.OUT_OF_STOCK and result.newly_failed:
+            await self.notify_admin(
+                f"⚠️ Захиалга {order.id} төлөгдсөн боловч {order.package_sku} багцын eSIM дууссан. "
+                "Сан руу eSIM нэмээд 'Төлбөр шалгах'-ыг дахин дарахыг харилцагчид хэлнэ үү."
+            )
+        return result
+
+    async def _send_esim(self, channel: Channel, order: Order, profile: EsimProfile) -> None:
+        await channel.send_photo(order.chat_id, qr_png(profile.lpa_string), "eSIM QR код")
+        await channel.send_text(order.chat_id, esim_message(self.catalog, order, profile))
+
+    def _out_of_stock_text(self) -> str:
+        return (
+            "Төлбөр баталгаажлаа ✅ Таны eSIM-ийг бэлтгэж байна, удахгүй энд илгээнэ. "
+            "Түр хүлээнэ үү, саатал гарсанд уучлаарай."
+        )
+
+    async def notify_admin(self, text: str) -> None:
+        if self.admin is None:
+            log.warning("ADMIN: %s", text)
+            return
+        channel_name, chat_id = self.admin
+        if channel := self.channels.get(channel_name):
+            await channel.send_text(chat_id, text)
