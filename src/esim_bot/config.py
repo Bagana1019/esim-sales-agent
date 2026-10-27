@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,13 +16,25 @@ class Settings(BaseSettings):
     # Локал туршилт: QPay-ийн оронд хуурамч төлбөр, туршилтын eSIM/лиценз автоматаар санд орно
     fake_payments: bool = False
 
-    # И-мэйл (вэб захиалгын хүргэлт). smtp_host хоосон бол и-мэйлийг email_outbox_dir-д .eml болгон хадгална
+    # И-мэйл (вэб захиалгын хүргэлт): Mailgun, үгүй бол SMTP. Аль нь ч тохируулаагүй бол илгээхгүй,
+    # email_outbox_dir-д .eml файл болгон хадгална
+    mailgun_api_key: str = ""
+    mailgun_domain: str = ""
+    mailgun_region: str = "us"  # us | eu — домэйноо аль бүсэд үүсгэснээс хамаарна
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
-    smtp_from: str = "NomadData <no-reply@example.com>"
+    # Илгээгч. Хоосон бол "SHOP_NAME <no-reply@MAILGUN_DOMAIN>". Хуучин SMTP_FROM нэрийг ч уншина
+    mail_from: str = Field("", validation_alias=AliasChoices("mail_from", "smtp_from"))
     email_outbox_dir: str = "out/emails"
+
+    @property
+    def sender(self) -> str:
+        # example.com бол .env.example-ийн жишээ утга — жинхэнэ илгээгч биш
+        if self.mail_from and not self.mail_from.rstrip(">").endswith("@example.com"):
+            return self.mail_from
+        return f"{self.shop_name} <no-reply@{self.mailgun_domain or 'example.com'}>"
 
     # LLM (Groq, OpenAI-compatible API)
     groq_api_key: str | None = None

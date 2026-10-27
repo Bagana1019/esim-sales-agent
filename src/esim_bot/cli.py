@@ -6,6 +6,7 @@
   uv run esim import-licenses keys.csv # лицензийн түлхүүр санд нэмэх
   uv run esim stock                  # үлдэгдэл харах
   uv run esim set-webhook            # Telegram webhook бүртгэх
+  uv run esim test-email you@mail.mn # и-мэйлийн тохиргоог (Mailgun/SMTP) шалгах
 """
 
 import argparse
@@ -20,8 +21,9 @@ from .channels.telegram import dispatch, parse_update
 from .config import get_settings, missing_token_hint
 from .db import Database
 from .inventory import import_esims, import_licenses, stock_by_sku
+from .mailer import FileMailer
 from .payments.fake import FakeQPay
-from .services import build_services
+from .services import build_mailer, build_services
 
 OUT_DIR = Path("out")
 log = logging.getLogger(__name__)
@@ -158,6 +160,22 @@ async def stock_cmd(db: Database | None = None) -> None:
     await db.dispose()
 
 
+async def test_email(to: str) -> None:
+    settings = get_settings()
+    async with httpx.AsyncClient(timeout=30) as http:
+        mailer = build_mailer(settings, http)
+        print(f"Илгээгч: {settings.sender}\nХэрэгсэл: {mailer}")
+        try:
+            await mailer.send(
+                to,
+                f"{settings.shop_name} - туршилтын и-мэйл",
+                f"Сайн байна уу,\n\n{settings.shop_name}-ийн и-мэйлийн тохиргоо зөв ажиллаж байна.",
+            )
+        except Exception as e:
+            raise SystemExit(f"Илгээж чадсангүй: {e}") from e
+    print(f"Илгээгээгүй, {mailer.outbox} хавтаст хадгаллаа" if isinstance(mailer, FileMailer) else f"{to} руу илгээлээ")
+
+
 async def set_webhook() -> None:
     settings = get_settings()
     services = await build_services(settings)
@@ -184,6 +202,8 @@ def main() -> None:
     p_import_lic.add_argument("path")
     sub.add_parser("stock", help="eSIM үлдэгдэл")
     sub.add_parser("set-webhook", help="Telegram webhook бүртгэх")
+    p_mail = sub.add_parser("test-email", help="и-мэйлийн тохиргоог (Mailgun/SMTP) шалгах")
+    p_mail.add_argument("to", help="хүлээн авах хаяг")
     args = parser.parse_args()
 
     if args.cmd == "chat":
@@ -201,6 +221,8 @@ def main() -> None:
         asyncio.run(stock_cmd())
     elif args.cmd == "set-webhook":
         asyncio.run(set_webhook())
+    elif args.cmd == "test-email":
+        asyncio.run(test_email(args.to))
 
 
 if __name__ == "__main__":

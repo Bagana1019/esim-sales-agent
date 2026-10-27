@@ -22,7 +22,9 @@ def client(tmp_path, outbox, monkeypatch):
     monkeypatch.setenv("EMAIL_OUTBOX_DIR", str(outbox))
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://shop.example")
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
-    monkeypatch.delenv("SMTP_HOST", raising=False)
+    # .env файлд Mailgun, SMTP тохируулсан байсан ч тестээс жинхэнэ и-мэйл илгээхгүй
+    monkeypatch.setenv("MAILGUN_API_KEY", "")
+    monkeypatch.setenv("SMTP_HOST", "")
     get_settings.cache_clear()
     with TestClient(main.app) as c:
         yield c
@@ -168,6 +170,21 @@ def test_esim_purchase_end_to_end(client, outbox):
     # Дахин шалгахад давхар и-мэйл илгээхгүй
     client.get(f"/api/orders/{order_id}/status?t={token}")
     assert len(emails(outbox)) == 1
+
+
+def test_mail_failure_does_not_block_delivery(client, caplog):
+    class BrokenMailer:
+        async def send(self, *args, **kwargs):
+            raise RuntimeError("Mailgun 401: Forbidden")
+
+    client.app.state.services.web.mailer = BrokenMailer()
+    order_url = buy(client, "JP-7D-5GB")
+    order_id, token = re.match(r"/order/(\w+)\?t=(\w+)", order_url).groups()
+    client.post(f"/dev/pay/{order_id}?t={token}")
+
+    assert client.get(f"/api/orders/{order_id}/status?t={token}").json() == {"status": "delivered"}
+    assert "TEST-ACTIVATION-CODE-0013" in client.get(order_url).text  # QR код хуудсанд гарсаар
+    assert "bat@example.com руу и-мэйл илгээж чадсангүй" in caplog.text and "Mailgun 401" in caplog.text
 
 
 def test_order_lookup_by_number_and_email(client):

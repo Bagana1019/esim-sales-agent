@@ -38,7 +38,7 @@ src/esim_bot/
   main.py            FastAPI: вэб дэлгүүр, /telegram/webhook, /qpay/callback, /health
   web/               Вэб дэлгүүр: нүүр, eSIM (/esim, /esim/<sku>), лиценз (/license, /license/<sku>),
                      сим суулгах заавар (/install), түгээмэл асуулт (/faq), захиалга шалгах (/check)
-  mailer.py          И-мэйл илгээх (SMTP, эсвэл локалд .eml файл)
+  mailer.py          И-мэйл илгээх (Mailgun API, SMTP, эсвэл локалд .eml файл)
   bot.py             Сувгаас хамааралгүй ботын логик (товчлуурын урсгал, төлбөр, хүргэлт)
   agent/
     loop.py          LLM agent loop (Groq, OpenAI-compatible Chat Completions + tool calling)
@@ -96,12 +96,31 @@ FAKE_PAYMENTS=true uv run uvicorn esim_bot.main:app --port 8000
 ```
 
 Браузерт http://localhost:8000 нээнэ. Бүтээгдэхүүн сонгож, и-мэйлээ оруулаад захиалгын хуудсан дээрх
-"(Туршилт) Төлсөнд тооцох" товчийг дарвал eSIM/лиценз хуудсанд гарна. SMTP тохируулаагүй бол
+"(Туршилт) Төлсөнд тооцох" товчийг дарвал eSIM/лиценз хуудсанд гарна. Mailgun, SMTP тохируулаагүй бол
 харилцагчид очих и-мэйл `out/emails/*.eml` файлд хадгалагдана (Outlook, Mail-ээр нээж үзнэ).
 
 Вэб захиалгын урсгал: нүүр хуудас → `/checkout` (и-мэйл) → `/order/{id}?t=...` (QPay QR, утсан
 дээр банкны апп-ын товч) → төлбөр ормогц хуудас өөрөө шинэчлэгдэж eSIM QR / лицензийн түлхүүр гарна,
 мөн и-мэйлээр очно. Захиалгын холбоос нууц түлхүүртэй тул зөвхөн харилцагч өөрөө нээнэ.
+
+#### И-мэйл (Mailgun)
+
+1. https://www.mailgun.com дээр бүртгүүлнэ. Эхэндээ өгдөг sandbox домэйн зөвхөн Mailgun-д
+   бүртгэсэн (authorized recipients) хаяг руу илгээнэ — туршилтад тохиромжтой.
+2. Жинхэнэ харилцагч руу илгээхэд өөрийн домэйноо (жишээ нь `mg.nomaddata.mn`) Sending → Domains-д
+   нэмж, Mailgun-ы өгсөн DNS бичлэгүүдийг (SPF, DKIM, MX) домэйны бүртгэгч дээрээ нэмээд Verify дарна.
+3. API key-ээ (Mailgun → API Security) аваад `.env`-д бичнэ. EU бүсэд домэйн үүсгэсэн бол `MAILGUN_REGION=eu`:
+   ```
+   MAILGUN_API_KEY=...
+   MAILGUN_DOMAIN=mg.nomaddata.mn
+   MAILGUN_REGION=us
+   MAIL_FROM=NomadData <no-reply@mg.nomaddata.mn>
+   ```
+4. Шалгана: `uv run esim test-email таны@хаяг.mn`. Сервер асахдаа ч аль хэрэгслээр илгээхийг
+   ("И-мэйл: Mailgun (...)") log-д бичнэ.
+
+Mailgun-ы оронд SMTP (`SMTP_HOST`...) ашиглаж болно. И-мэйл илгээж чадаагүй ч захиалга зогсохгүй —
+QR код, түлхүүр захиалгын хуудсанд гарч, админд мэдэгдэл очно.
 
 ### 4. Сервер дээр (webhook + QPay callback)
 
