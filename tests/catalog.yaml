@@ -1,0 +1,72 @@
+# Тестийн каталог: бот, агент, захиалгын урсгалын тестүүд data/catalog.yaml-ийн үнэ, багц
+# өөрчлөгдөхөд эвдрэхгүйн тулд тогтмол 8 багцтай. Бодит каталогийг test_catalog.py шалгана.
+# Улс, багцын жагсаалт (Монголын зах зээлд хамгийн их борлуулагддаг 4 улс).
+# aliases: харилцагч латинаар г.м. бичих нэрс — бот ойлгоход тусална.
+# notes: тухайн улсын талаар бот харилцагчид баттай хэлэх баримт (заавал биш).
+# sku нь eSIM сангийн (esim_profiles.package_sku) утгатай таарах ёстой.
+countries:
+  - code: CN
+    name: Хятад
+    flag: "🇨🇳"
+    aliases: [China, Hytad, Hyatad, Khyatad, Kitad]
+    notes: >-
+      Манай Хятадын eSIM-ээр Facebook, Instagram, Google, WhatsApp VPN-гүйгээр шууд ажиллана
+      (Хятадын дотоодын SIM-ээс ялгаатай).
+  - code: KR
+    name: БНСУ
+    flag: "🇰🇷"
+    aliases: [Солонгос, Korea, South Korea, Solongos, BNSU]
+  - code: JP
+    name: Япон
+    flag: "🇯🇵"
+    aliases: [Japan, Yapon, Japon, Iapon]
+  - code: TH
+    name: Тайланд
+    flag: "🇹🇭"
+    aliases: [Thailand, Tailand, Thai]
+
+packages:
+  - {sku: CN-3D-1GB,  country: CN, days: 3, data: "Нийт 1GB", price_mnt: 15000}
+  - {sku: CN-5D-3GB,  country: CN, days: 5, data: "Нийт 3GB", price_mnt: 28000}
+  - {sku: CN-7D-5GB,  country: CN, days: 7, data: "Нийт 5GB", price_mnt: 42000}
+  - {sku: KR-5D-1GBD, country: KR, days: 5, data: "Өдөрт 1GB + Хязгааргүй", price_mnt: 25000}
+  - {sku: KR-7D-10GB, country: KR, days: 7, data: "Нийт 10GB", price_mnt: 40000}
+  - {sku: JP-5D-3GB,  country: JP, days: 5, data: "Нийт 3GB", price_mnt: 25000}
+  - {sku: JP-7D-5GB,  country: JP, days: 7, data: "Нийт 5GB", price_mnt: 38000}
+  - {sku: TH-8D-15GB, country: TH, days: 8, data: "Нийт 15GB", price_mnt: 30000}
+
+# Windows лиценз. ҮНЭ НЬ ЖИШЭЭ — бодит худалдан авах үнэдээ тулгуурлан заавал солино уу.
+# Түлхүүрийг Microsoft-ын албан ёсны дистрибьютер/борлуулагчаас авна (OEM/volume түлхүүрийг дангаар
+# нь дахин зарах нь Microsoft-ын лицензийн нөхцөлийг зөрчиж, түлхүүр хүчингүй болох эрсдэлтэй).
+licenses:
+  - sku: WIN11-HOME
+    name: Windows 11 Home
+    price_mnt: 100000
+    description: Гэрийн болон хувийн хэрэглээ, 1 компьютер
+    activation: &win11 |-
+      1. Settings → System → Activation → "Change product key"-г дарна.
+      2. Түлхүүрээ оруулаад Next дарна.
+      Windows 11 суулгах файл хэрэгтэй бол: https://www.microsoft.com/software-download/windows11
+  - sku: WIN11-PRO
+    name: Windows 11 Pro
+    price_mnt: 150000
+    description: Ажил, оффис — BitLocker, Remote Desktop, Hyper-V, домэйнд нэгдэх; 1 компьютер
+    activation: *win11
+  - sku: WIN11-PRO-WS
+    name: Windows 11 Pro for Workstations
+    price_mnt: 250000
+    description: Олон процессор, их RAM-тай хүчирхэг ажлын станц; 1 компьютер
+    activation: *win11
+  - sku: WINSRV25-STD
+    name: Windows Server 2025 Standard (16 core)
+    price_mnt: 1500000
+    description: Сервер, 16 core, 2 виртуал машин
+    activation: &server |-
+      Command Prompt-ийг "Run as administrator"-оор нээгээд:
+      slmgr /ipk <түлхүүр>
+      slmgr /ato
+  - sku: WINSRV25-DC
+    name: Windows Server 2025 Datacenter (16 core)
+    price_mnt: 5000000
+    description: Сервер, 16 core, хязгааргүй виртуал машин
+    activation: *server

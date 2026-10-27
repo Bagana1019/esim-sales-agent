@@ -22,8 +22,11 @@ def product_label(catalog: Catalog, sku: str) -> str:
     package = catalog.package(sku)
     if package is None:
         return sku
-    country = catalog.country(package.country)
-    prefix = country.label if country else package.country
+    if package.region:
+        prefix = f"🌏 {package.region.name}"
+    else:
+        country = catalog.country(package.country)
+        prefix = country.label if country else package.country
     return f"{prefix} - {package.days} хоног / {package.data}"
 
 

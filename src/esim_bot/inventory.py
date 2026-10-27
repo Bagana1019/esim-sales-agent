@@ -3,6 +3,7 @@ from pathlib import Path
 
 from sqlalchemy import func, select
 
+from .catalog import Catalog
 from .db import Database, EsimProfile, LicenseKey
 
 REQUIRED_COLUMNS = {"package_sku", "iccid", "smdp_address", "activation_code"}
@@ -51,9 +52,25 @@ async def stock_by_sku(db: Database, *models: type[EsimProfile | LicenseKey]) ->
     return stock
 
 
-async def seed_demo_stock(db: Database) -> None:
+async def seed_demo_stock(db: Database, catalog: Catalog) -> None:
     """Хуурамч төлбөрийн горимд сан хоосон бол туршилтын eSIM, лиценз нэмнэ."""
     if not await stock_by_sku(db, EsimProfile):
-        print(f"(Туршилтын {await import_esims(db, 'data/esims.example.csv')} eSIM санд нэмэгдлээ)")
+        added = await import_esims(db, "data/esims.example.csv")
+        # Жишээ CSV-д ороогүй багц бүрд 2 туршилтын eSIM — локал дээр бүх багцыг худалдаж үзэх боломжтой
+        stocked = await stock_by_sku(db, EsimProfile)
+        demo = [
+            EsimProfile(
+                package_sku=p.sku,
+                iccid=f"8900{i:05d}{n}",
+                smdp_address="rsp.example-provider.com",
+                activation_code=f"TEST-{p.sku}-{n}",
+            )
+            for i, p in enumerate(catalog.packages)
+            if p.sku not in stocked
+            for n in (1, 2)
+        ]
+        async with db.session() as s, s.begin():
+            s.add_all(demo)
+        print(f"(Туршилтын {added + len(demo)} eSIM санд нэмэгдлээ)")
     if not await stock_by_sku(db, LicenseKey):
         print(f"(Туршилтын {await import_licenses(db, 'data/licenses.example.csv')} лиценз санд нэмэгдлээ)")

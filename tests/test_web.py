@@ -38,21 +38,69 @@ def buy(client, sku, email="bat@example.com"):
     return resp.headers["location"]
 
 
-def test_home_lists_esims_and_licenses(client):
+def catalog_of(client):
+    return client.app.state.services.web.catalog
+
+
+def test_home_links_countries_to_listing(client):
     html = client.get("/").text
+    catalog = catalog_of(client)
     assert "Nomad <span>Data</span>" in html and "Дэлхийн дата" in html
-    assert 'src="/static/flags/cn.svg"' in html and "Хятад" in html and "VPN-гүйгээр" in html  # туг, улсын тэмдэглэл
-    assert "≈3,750₮" in html  # харьцуулах хүснэгт: Тайланд 30,000₮ / 8 хоног
-    assert "/checkout?sku=JP-7D-5GB" in html and "38,000₮" in html
+    assert 'src="/static/flags/cn.svg"' in html and '/esim?country=CN' in html
+    cheapest = min(catalog.packages, key=lambda p: p.price_mnt)
+    assert f'href="/esim/{cheapest.sku}"' in html  # hero-ийн хамгийн хямд багц
+    assert f"Бүх {len(catalog.packages)} багц" in html
     assert "Windows 11 Pro" in html and "/checkout?sku=WIN11-PRO" in html
+
+
+def test_esim_listing_filters(client):
+    catalog = catalog_of(client)
+    html = client.get("/esim").text
+    assert all(f'href="/esim/{p.sku}"' in html for p in catalog.packages)
+
+    japan = client.get("/esim?country=JP").text
+    covering = catalog.packages_covering("JP")
+    assert any(p.region for p in covering)  # олон улсын багц Японд ч харагдана
+    assert all(f'href="/esim/{p.sku}"' in japan for p in covering)
+    assert 'href="/esim/CN-3D-1GB"' not in japan
+
+    multi = client.get("/esim?scope=multi&gb=20").text
+    shown = re.findall(r'href="/esim/([\w-]+)"', multi)
+    assert shown and all(catalog.package(s).region and catalog.package(s).total_gb >= 20 for s in shown)
+
+    search = client.get("/esim?q=yapon").text  # латин нэрээр
+    assert re.findall(r'href="/esim/([\w-]+)"', search) and "CN-3D-1GB" not in search
+    assert "Таны шүүлтүүрт тохирох багц олдсонгүй" in client.get("/esim?q=zzzz").text
+    assert client.get("/esim?country=XX&gb=7&sort=nope").status_code == 200  # буруу утгыг үл тоомсорлоно
+
+    table = client.get("/esim?view=table&sort=price").text
+    assert "data-sortable" in table and "≈3,750₮" in table  # Тайланд 30,000₮ / 8 хоног
+
+
+def test_package_detail_page(client):
+    regional = next(p for p in catalog_of(client).packages if p.region)
+    page = client.get(f"/esim/{regional.sku}").text
+    assert regional.region.name in page and f"{len(regional.countries)} улс" in page and "Хураангуй" in page
+    assert client.get("/esim/NOPE").status_code == 404
+    assert client.get("/esim/WIN11-PRO").status_code == 404  # лиценз танилцуулгагүй
 
 
 def test_checkout_validates_input(client):
     assert client.get("/checkout?sku=NOPE").status_code == 404
-    page = client.get("/checkout?sku=TH-8D-15GB").text
-    assert "🇹🇭 Тайланд - 8 хоног / Нийт 15GB" in page and "30,000₮" in page
-    bad = client.post("/checkout", data={"sku": "TH-8D-15GB", "email": "not-an-email"})
-    assert bad.status_code == 400 and "И-мэйл хаяг буруу" in bad.text
+    redirect = client.get("/checkout?sku=TH-8D-15GB", follow_redirects=False)
+    assert redirect.status_code == 303 and redirect.headers["location"] == "/esim/TH-8D-15GB"
+    page = client.get("/esim/TH-8D-15GB").text
+    assert "Тайланд · 8 хоног, Нийт 15GB" in page and "30,000₮" in page
+    bad = client.post("/checkout", data={"sku": "TH-8D-15GB", "email": "not-an-email", "quantity": "2"})
+    assert bad.status_code == 400 and "И-мэйл хаяг буруу" in bad.text and "60,000₮" in bad.text
+    assert "QPay-ээр төлөх" in client.get("/checkout?sku=WIN11-PRO").text  # лиценз хуучин хуудсаараа
+
+
+def test_checkout_quantity_makes_one_order_with_several_esims(client, outbox):
+    resp = client.post("/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "quantity": "9"}, follow_redirects=False)
+    page = client.get(resp.headers["location"]).text
+    price = catalog_of(client).package("JP-7D-5GB").price_mnt
+    assert page.count("Япон - 7 хоног / Нийт 5GB") == 5 and f"{price * 5:,}₮" in page  # дээд тал нь 5
 
 
 def test_esim_purchase_end_to_end(client, outbox):

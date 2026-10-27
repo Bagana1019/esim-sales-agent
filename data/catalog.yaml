@@ -23,15 +23,109 @@ countries:
     flag: "🇹🇭"
     aliases: [Thailand, Tailand, Thai]
 
+# Олон улсын багцын бүс: багц нь countries-д буй бүх улсад ажиллана.
+regions:
+  - code: AP12
+    name: Ази, Номхон далай 12 улс
+    countries: [AU, HK, ID, JP, KR, MO, MY, NZ, SG, TH, TW, VN]
+  - code: AS15
+    name: Ази 15 улс
+    countries: [BD, CN, HK, ID, IN, JP, KH, KR, LA, MO, MY, PH, TH, TW, VN]
+  - code: GL20
+    name: Дэлхийн 20 улс
+    countries: [AT, AU, CN, DK, GB, HK, ID, IE, IL, IT, JP, KR, MO, MY, SE, SG, TH, TW, US, VN]
+  - code: EAU80
+    name: Европ, Ази, АНУ 80 улс
+    countries: [AD, AF, AL, AM, AT, AU, AZ, BA, BD, BE, BG, BH, BY, CH, CY, CZ, DE, DK, EE, ES, FI, FJ, FO, FR, GB, GE, GG, GR, HK, HR, HU, ID, IE, IL, IM, IN, IQ, IS, IT, JE, JP, KG, KH, KR, KW, KZ, LA, LI, LK, LT, LU, LV, MD, ME, MK, MT, MY, NL, "NO", NZ, OM, PH, PK, PL, PT, QA, RO, RS, SE, SG, SI, SK, TH, TJ, TR, TW, UA, US, UZ, VN]
+  - code: GL152
+    name: Дэлхийн 152 улс
+    countries: [AD, AE, AG, AI, AL, AM, AR, AT, AU, AW, AZ, BB, BD, BE, BH, BN, BO, BQ, BR, BS, BW, BZ, CA, CD, CH, CI, CL, CM, CN, CO, CR, CW, CY, CZ, DE, DK, DM, DO, DZ, EC, EE, EG, ES, FI, FJ, FO, FR, GB, GD, GE, GF, GG, GH, GI, GM, GP, GR, GT, GY, HK, HN, HR, HT, HU, ID, IE, IL, IN, IS, IT, JE, JM, JO, JP, KE, KH, KN, KR, KW, KY, KZ, LA, LC, LI, LK, LR, LT, LU, LV, MA, MC, MD, ME, MG, MK, ML, MN, MO, MQ, MS, MT, MX, MY, MZ, NG, NI, NL, "NO", NZ, OM, PA, PE, PF, PH, PK, PL, PR, PT, PY, QA, RE, RO, RS, SA, SC, SE, SG, SI, SK, SL, SN, SR, SV, TC, TD, TH, TL, TN, TR, TT, TW, TZ, UA, UG, US, UY, UZ, VA, VC, VG, VN, ZA]
+
+# gb: дата хэмжээ (daily: true бол өдөрт ногдох) — вэбийн шүүлтүүрт ашиглана.
+# region: олон улсын багц (дээрх regions-ийн code). country нь бот, вэбд аль улсын дор харагдахыг заана.
+# Анхны 8 багцаас бусдын хэмжээ, хоног, үнийг gosim.mn-ийн жагсаалтаас (2026-10-27) авсан;
+# CN-7D-5GB, JP-5D-3GB, JP-7D-5GB-ийн үнийг мөн gosim.mn-ийнхаар шинэчилсэн (хуучин нь 42,000 / 25,000 / 38,000₮).
+# Багц бүрийн eSIM-ийг нийлүүлэгчээсээ авч `esim import-esims`-ээр санд нэмнэ — сан хоосон багцад төлбөр орсон ч eSIM олгогдохгүй.
 packages:
-  - {sku: CN-3D-1GB,  country: CN, days: 3, data: "Нийт 1GB", price_mnt: 15000}
-  - {sku: CN-5D-3GB,  country: CN, days: 5, data: "Нийт 3GB", price_mnt: 28000}
-  - {sku: CN-7D-5GB,  country: CN, days: 7, data: "Нийт 5GB", price_mnt: 42000}
-  - {sku: KR-5D-1GBD, country: KR, days: 5, data: "Өдөрт 1GB + Хязгааргүй", price_mnt: 25000}
-  - {sku: KR-7D-10GB, country: KR, days: 7, data: "Нийт 10GB", price_mnt: 40000}
-  - {sku: JP-5D-3GB,  country: JP, days: 5, data: "Нийт 3GB", price_mnt: 25000}
-  - {sku: JP-7D-5GB,  country: JP, days: 7, data: "Нийт 5GB", price_mnt: 38000}
-  - {sku: TH-8D-15GB, country: TH, days: 8, data: "Нийт 15GB", price_mnt: 30000}
+  - {sku: CN-3D-1GB,  country: CN, days: 3, data: "Нийт 1GB", gb: 1, price_mnt: 15000}
+  - {sku: CN-5D-3GB,  country: CN, days: 5, data: "Нийт 3GB", gb: 3, price_mnt: 28000}
+  - {sku: CN-7D-5GB,  country: CN, days: 7, data: "Нийт 5GB", gb: 5, price_mnt: 16000}
+  - {sku: KR-5D-1GBD, country: KR, days: 5, data: "Өдөрт 1GB + Хязгааргүй", gb: 1, daily: true, price_mnt: 25000}
+  - {sku: KR-7D-10GB, country: KR, days: 7, data: "Нийт 10GB", gb: 10, price_mnt: 40000}
+  - {sku: JP-5D-3GB,  country: JP, days: 5, data: "Нийт 3GB", gb: 3, price_mnt: 14000}
+  - {sku: JP-7D-5GB,  country: JP, days: 7, data: "Нийт 5GB", gb: 5, price_mnt: 17000}
+  - {sku: TH-8D-15GB, country: TH, days: 8, data: "Нийт 15GB", gb: 15, price_mnt: 30000}
+
+  - {sku: CN-3D-3GB, country: CN, days: 3, data: "Нийт 3GB", gb: 3, price_mnt: 7500}
+  - {sku: CN-3D-5GB, country: CN, days: 3, data: "Нийт 5GB", gb: 5, price_mnt: 15000}
+  - {sku: CN-7D-10GB, country: CN, days: 7, data: "Нийт 10GB", gb: 10, price_mnt: 23000}
+  - {sku: CN-10D-10GB, country: CN, days: 10, data: "Нийт 10GB", gb: 10, price_mnt: 25000}
+  - {sku: CN-10D-20GB, country: CN, days: 10, data: "Нийт 20GB", gb: 20, price_mnt: 40000}
+  - {sku: CN-15D-20GB, country: CN, days: 15, data: "Нийт 20GB", gb: 20, price_mnt: 42000}
+  - {sku: CN-30D-20GB, country: CN, days: 30, data: "Нийт 20GB", gb: 20, price_mnt: 75000}
+  - {sku: CN-30D-30GB, country: CN, days: 30, data: "Нийт 30GB", gb: 30, price_mnt: 59000}
+  - {sku: CN-30D-50GB, country: CN, days: 30, data: "Нийт 50GB", gb: 50, price_mnt: 110000}
+  - {sku: CN-180D-50GB, country: CN, days: 180, data: "Нийт 50GB", gb: 50, price_mnt: 195000}
+  - {sku: JP-10D-10GB, country: JP, days: 10, data: "Нийт 10GB", gb: 10, price_mnt: 25000}
+  - {sku: JP-15D-15GB, country: JP, days: 15, data: "Нийт 15GB", gb: 15, price_mnt: 42000}
+  - {sku: JP-15D-20GB, country: JP, days: 15, data: "Нийт 20GB", gb: 20, price_mnt: 47000}
+  - {sku: JP-30D-20GB, country: JP, days: 30, data: "Нийт 20GB", gb: 20, price_mnt: 55000}
+  - {sku: JP-30D-30GB, country: JP, days: 30, data: "Нийт 30GB", gb: 30, price_mnt: 69000}
+  - {sku: JP-30D-50GB, country: JP, days: 30, data: "Нийт 50GB", gb: 50, price_mnt: 110000}
+  - {sku: JP-180D-20GB, country: JP, days: 180, data: "Нийт 20GB", gb: 20, price_mnt: 81000}
+  - {sku: JP-180D-30GB, country: JP, days: 180, data: "Нийт 30GB", gb: 30, price_mnt: 150000}
+  - {sku: KR-1D-3GB, country: KR, days: 1, data: "Нийт 3GB", gb: 3, price_mnt: 8000}
+  - {sku: KR-3D-3GB, country: KR, days: 3, data: "Нийт 3GB", gb: 3, price_mnt: 13000}
+  - {sku: KR-7D-5GB, country: KR, days: 7, data: "Нийт 5GB", gb: 5, price_mnt: 17000}
+  - {sku: KR-7D-8GB, country: KR, days: 7, data: "Нийт 8GB", gb: 8, price_mnt: 21000}
+  - {sku: KR-15D-10GB, country: KR, days: 15, data: "Нийт 10GB", gb: 10, price_mnt: 25000}
+  - {sku: KR-15D-20GB, country: KR, days: 15, data: "Нийт 20GB", gb: 20, price_mnt: 39000}
+  - {sku: KR-30D-15GB, country: KR, days: 30, data: "Нийт 15GB", gb: 15, price_mnt: 35000}
+  - {sku: KR-30D-30GB, country: KR, days: 30, data: "Нийт 30GB", gb: 30, price_mnt: 58000}
+  - {sku: KR-30D-50GB, country: KR, days: 30, data: "Нийт 50GB", gb: 50, price_mnt: 83000}
+
+  - {sku: AP12-3D-3GB, country: TH, region: AP12, days: 3, data: "Нийт 3GB", gb: 3, price_mnt: 19000}
+  - {sku: AP12-3D-5GB, country: TH, region: AP12, days: 3, data: "Нийт 5GB", gb: 5, price_mnt: 26000}
+  - {sku: AP12-5D-3GB, country: TH, region: AP12, days: 5, data: "Нийт 3GB", gb: 3, price_mnt: 19500}
+  - {sku: AP12-5D-5GB, country: TH, region: AP12, days: 5, data: "Нийт 5GB", gb: 5, price_mnt: 27000}
+  - {sku: AP12-7D-3GB, country: TH, region: AP12, days: 7, data: "Нийт 3GB", gb: 3, price_mnt: 20000}
+  - {sku: AP12-7D-5GB, country: TH, region: AP12, days: 7, data: "Нийт 5GB", gb: 5, price_mnt: 28000}
+  - {sku: AP12-7D-10GB, country: TH, region: AP12, days: 7, data: "Нийт 10GB", gb: 10, price_mnt: 49000}
+  - {sku: AP12-7D-20GB, country: TH, region: AP12, days: 7, data: "Нийт 20GB", gb: 20, price_mnt: 68000}
+  - {sku: AP12-10D-5GB, country: TH, region: AP12, days: 10, data: "Нийт 5GB", gb: 5, price_mnt: 29000}
+  - {sku: AP12-10D-10GB, country: TH, region: AP12, days: 10, data: "Нийт 10GB", gb: 10, price_mnt: 49500}
+  - {sku: AP12-10D-20GB, country: TH, region: AP12, days: 10, data: "Нийт 20GB", gb: 20, price_mnt: 68500}
+  - {sku: AP12-10D-30GB, country: TH, region: AP12, days: 10, data: "Нийт 30GB", gb: 30, price_mnt: 79000}
+  - {sku: AP12-10D-50GB, country: TH, region: AP12, days: 10, data: "Нийт 50GB", gb: 50, price_mnt: 98000}
+  - {sku: AP12-15D-10GB, country: TH, region: AP12, days: 15, data: "Нийт 10GB", gb: 10, price_mnt: 50000}
+  - {sku: AP12-15D-20GB, country: TH, region: AP12, days: 15, data: "Нийт 20GB", gb: 20, price_mnt: 69000}
+  - {sku: AP12-15D-30GB, country: TH, region: AP12, days: 15, data: "Нийт 30GB", gb: 30, price_mnt: 79500}
+  - {sku: AP12-15D-50GB, country: TH, region: AP12, days: 15, data: "Нийт 50GB", gb: 50, price_mnt: 99000}
+  - {sku: AP12-30D-10GB, country: TH, region: AP12, days: 30, data: "Нийт 10GB", gb: 10, price_mnt: 50500}
+  - {sku: AP12-30D-20GB, country: TH, region: AP12, days: 30, data: "Нийт 20GB", gb: 20, price_mnt: 69500}
+  - {sku: AP12-30D-30GB, country: TH, region: AP12, days: 30, data: "Нийт 30GB", gb: 30, price_mnt: 80000}
+  - {sku: AP12-30D-50GB, country: TH, region: AP12, days: 30, data: "Нийт 50GB", gb: 50, price_mnt: 134000}
+  - {sku: AS15-15D-3GB, country: TH, region: AS15, days: 15, data: "Нийт 3GB", gb: 3, price_mnt: 35000}
+  - {sku: AS15-15D-5GB, country: TH, region: AS15, days: 15, data: "Нийт 5GB", gb: 5, price_mnt: 42000}
+  - {sku: AS15-30D-10GB, country: TH, region: AS15, days: 30, data: "Нийт 10GB", gb: 10, price_mnt: 66000}
+  - {sku: AS15-30D-20GB, country: TH, region: AS15, days: 30, data: "Нийт 20GB", gb: 20, price_mnt: 125000}
+  - {sku: GL20-7D-3GB, country: TH, region: GL20, days: 7, data: "Нийт 3GB", gb: 3, price_mnt: 19000}
+  - {sku: GL20-10D-5GB, country: TH, region: GL20, days: 10, data: "Нийт 5GB", gb: 5, price_mnt: 23000}
+  - {sku: GL20-15D-10GB, country: TH, region: GL20, days: 15, data: "Нийт 10GB", gb: 10, price_mnt: 35000}
+  - {sku: GL20-30D-20GB, country: TH, region: GL20, days: 30, data: "Нийт 20GB", gb: 20, price_mnt: 69000}
+  - {sku: GL20-30D-30GB, country: TH, region: GL20, days: 30, data: "Нийт 30GB", gb: 30, price_mnt: 103000}
+  - {sku: GL20-30D-50GB, country: TH, region: GL20, days: 30, data: "Нийт 50GB", gb: 50, price_mnt: 153000}
+  - {sku: EAU80-14D-1GB, country: TH, region: EAU80, days: 14, data: "Нийт 1GB", gb: 1, price_mnt: 23000}
+  - {sku: EAU80-30D-3GB, country: TH, region: EAU80, days: 30, data: "Нийт 3GB", gb: 3, price_mnt: 40000}
+  - {sku: EAU80-30D-5GB, country: TH, region: EAU80, days: 30, data: "Нийт 5GB", gb: 5, price_mnt: 56000}
+  - {sku: EAU80-30D-10GB, country: TH, region: EAU80, days: 30, data: "Нийт 10GB", gb: 10, price_mnt: 97000}
+  - {sku: EAU80-30D-20GB, country: TH, region: EAU80, days: 30, data: "Нийт 20GB", gb: 20, price_mnt: 172000}
+  - {sku: EAU80-365D-20GB, country: TH, region: EAU80, days: 365, data: "Нийт 20GB", gb: 20, price_mnt: 200000}
+  - {sku: EAU80-365D-40GB, country: TH, region: EAU80, days: 365, data: "Нийт 40GB", gb: 40, price_mnt: 301000}
+  - {sku: GL152-15D-2GB, country: TH, region: GL152, days: 15, data: "Нийт 2GB", gb: 2, price_mnt: 52000}
+  - {sku: GL152-30D-3GB, country: TH, region: GL152, days: 30, data: "Нийт 3GB", gb: 3, price_mnt: 70000}
+  - {sku: GL152-30D-5GB, country: TH, region: GL152, days: 30, data: "Нийт 5GB", gb: 5, price_mnt: 102000}
+  - {sku: GL152-30D-10GB, country: TH, region: GL152, days: 30, data: "Нийт 10GB", gb: 10, price_mnt: 167000}
 
 # Windows лиценз. ҮНЭ НЬ ЖИШЭЭ — бодит худалдан авах үнэдээ тулгуурлан заавал солино уу.
 # Түлхүүрийг Microsoft-ын албан ёсны дистрибьютер/борлуулагчаас авна (OEM/volume түлхүүрийг дангаар

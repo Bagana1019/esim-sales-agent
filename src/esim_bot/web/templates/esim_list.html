@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flag, icon, pkg_flag, pkg_name, places, svg %}
+{% block title %}eSIM багцууд{{ (": " ~ country.name) if country }} — {{ shop }}{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div class="wrap">
+    <nav class="crumbs" aria-label="Байршил"><a href="/">Нүүр</a><span aria-hidden="true">/</span><span>eSIM багцууд</span></nav>
+    <h1>{% if country %}{{ flag(country) }}{{ country.name }}{% else %}eSIM багцууд{% endif %}</h1>
+    <p>{{ packages|length }} багц · Төлбөр ормогц QR код и-мэйлээр очно</p>
+  </div>
+</section>
+
+<div class="wrap shop">
+  <form class="filters" method="get" action="/esim" data-filters>
+    <details open data-collapse>
+      <summary>{{ svg("filter") }}Шүүлтүүр{% if filters.active %}<span class="dot" aria-label="идэвхтэй"></span>{% endif %}</summary>
+      <div class="filters-body">
+        <div class="fgroup">
+          <span class="flabel">Улс</span>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="country" value=""{% if not filters.country %} checked{% endif %}><span>Бүгд</span></label>
+            {% for c in countries %}
+            <label class="opt"><input type="radio" name="country" value="{{ c.code }}"{% if filters.country == c.code %} checked{% endif %}><span>{{ flag(c) }}{{ c.name }}</span></label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel" for="q">Нэрээр хайх</label>
+          <input id="q" class="finput" type="search" name="q" value="{{ filters.q }}" placeholder="Жишээ нь Ази, Сингапур" autocomplete="off">
+        </div>
+        <div class="fgroup">
+          <label class="flabel" for="sort">Эрэмбэлэх</label>
+          <select id="sort" class="finput" name="sort">
+            {% for key, (label, _) in listing.SORTS.items() %}<option value="{{ key }}"{% if filters.sort == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="fgroup">
+          <span class="flabel">Хамрах хүрээ</span>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="scope" value=""{% if not filters.scope %} checked{% endif %}><span>Бүгд</span></label>
+            {% for key, label in listing.SCOPES.items() %}
+            <label class="opt"><input type="radio" name="scope" value="{{ key }}"{% if filters.scope == key %} checked{% endif %}><span>{{ label }}</span></label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="fgroup">
+          <span class="flabel">Дата хэмжээ</span>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="gb" value=""{% if not filters.gb %} checked{% endif %}><span>Бүгд</span></label>
+            {% for gb in listing.GB_OPTIONS %}
+            <label class="opt"><input type="radio" name="gb" value="{{ gb }}"{% if filters.gb == gb %} checked{% endif %}><span>{{ gb }}GB+</span></label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="fgroup">
+          <span class="flabel">Хүчинтэй хоног</span>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="days" value=""{% if not filters.days %} checked{% endif %}><span>Бүгд</span></label>
+            {% for d in listing.DAY_OPTIONS %}
+            <label class="opt"><input type="radio" name="days" value="{{ d }}"{% if filters.days == d %} checked{% endif %}><span>{{ d }}+ хоног</span></label>
+            {% endfor %}
+          </div>
+        </div>
+        {% if filters.view == "table" %}<input type="hidden" name="view" value="table">{% endif %}
+        <div class="factions">
+          <button class="btn" type="submit" data-nojs>Шүүх</button>
+          {% if filters.active %}<a class="btn secondary" href="{{ filters.url(country='', scope='', gb=0, days=0, q='') }}">Цэвэрлэх</a>{% endif %}
+        </div>
+      </div>
+    </details>
+  </form>
+
+  <div class="results">
+    <div class="results-head">
+      <div class="tags">
+        <b>{{ packages|length }} багц</b>
+        {% if filters.country %}<a class="tag" href="{{ filters.url(country='') }}">{{ country.name }}{{ svg("x") }}</a>{% endif %}
+        {% if filters.scope %}<a class="tag" href="{{ filters.url(scope='') }}">{{ listing.SCOPES[filters.scope] }}{{ svg("x") }}</a>{% endif %}
+        {% if filters.gb %}<a class="tag" href="{{ filters.url(gb=0) }}">{{ filters.gb }}GB+{{ svg("x") }}</a>{% endif %}
+        {% if filters.days %}<a class="tag" href="{{ filters.url(days=0) }}">{{ filters.days }}+ хоног{{ svg("x") }}</a>{% endif %}
+        {% if filters.q %}<a class="tag" href="{{ filters.url(q='') }}">“{{ filters.q }}”{{ svg("x") }}</a>{% endif %}
+      </div>
+      <nav class="seg" aria-label="Харагдац"><a{% if filters.view == "cards" %} class="on"{% endif %} href="{{ filters.url(view='cards') }}">Карт</a><a{% if filters.view == "table" %} class="on"{% endif %} href="{{ filters.url(view='table') }}">Хүснэгт</a></nav>
+    </div>
+
+    {% if country and country.notes %}
+    <div class="note">{{ svg("info") }}<span>{{ country.notes }}</span></div>
+    {% endif %}
+
+    {% if not packages %}
+    <div class="empty-state">
+      {{ icon("search", "lg") }}
+      <b>Таны шүүлтүүрт тохирох багц олдсонгүй</b>
+      <a class="btn pill" href="{{ filters.url(scope='', gb=0, days=0, q='') }}">Шүүлтүүрийг цэвэрлэх</a>
+    </div>
+    {% elif filters.view == "table" %}
+    <div class="table-wrap">
+      <table class="table" data-sortable>
+        <thead>
+          <tr>
+            <th scope="col">Багц</th>
+            <th scope="col">Хамрах хүрээ</th>
+            <th scope="col"><button class="sort" type="button" data-sort="days">Хугацаа</button></th>
+            <th scope="col">Дата</th>
+            <th scope="col" class="num-col"><button class="sort" type="button" data-sort="price">Үнэ</button></th>
+            <th scope="col" class="num-col"><button class="sort" type="button" data-sort="perday">Өдөрт</button></th>
+            <th scope="col"><span class="sr-only">Дэлгэрэнгүй</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in packages %}
+          {% set per_day = (p.price_mnt / p.days)|round|int %}
+          <tr data-days="{{ p.days }}" data-price="{{ p.price_mnt }}" data-perday="{{ per_day }}">
+            <td><span class="cell-country">{{ pkg_flag(p) }}{{ pkg_name(p) }}</span></td>
+            <td class="muted">{{ places(p) }}</td>
+            <td>{{ p.days }} хоног</td>
+            <td class="mono">{{ p.data }}</td>
+            <td class="mono num-col">{{ format_mnt(p.price_mnt) }}</td>
+            <td class="mono num-col muted">≈{{ format_mnt(per_day) }}</td>
+            <td><a class="btn pill sm" href="/esim/{{ p.sku }}">Харах</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="pgrid">
+      {% for p in packages %}
+      <a class="tile pcard reveal" style="--d:{{ loop.index0 % 4 }}" href="/esim/{{ p.sku }}">
+        <span class="pcard-top">
+          <span class="pflag">{{ pkg_flag(p) }}</span>
+          <span class="badge{% if p.region %} blue{% endif %}">{{ "Олон улс · " ~ p.countries|length if p.region else ("Өдөр бүр" if p.daily else "Нэг улс") }}</span>
+          <span class="pprice">{{ format_mnt(p.price_mnt) }}</span>
+        </span>
+        <span class="pcard-title">{{ pkg_name(p) }} · {{ p.data|replace("Нийт ", "") }} · {{ p.days }} хоног</span>
+        <span class="pcard-where">{{ svg("pin") }}{{ places(p) }}</span>
+        <span class="pspecs">
+          <span>{{ svg("data") }}{{ p.data|replace("Нийт ", "") }}</span>
+          <span>{{ svg("days") }}{{ p.days }} хоног</span>
+          <span>{{ svg("coins") }}≈{{ format_mnt((p.price_mnt / p.days)|round|int) }}/хоног</span>
+          <span>{{ svg("mail") }}QR и-мэйлээр</span>
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

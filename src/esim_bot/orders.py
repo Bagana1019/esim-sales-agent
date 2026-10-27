@@ -124,6 +124,8 @@ class OrderService:
     def _short_name(self, product: Product) -> str:
         if isinstance(product, License):
             return product.name
+        if product.region:
+            return f"eSIM {product.region.name} {product.days} хоног"
         country = self.catalog.country(product.country)
         return f"eSIM {country.name if country else product.country} {product.days} хоног"
 

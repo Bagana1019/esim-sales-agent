@@ -36,7 +36,8 @@ QPay → /qpay/callback  (эсвэл харилцагч "Төлбөр шалга
 ```
 src/esim_bot/
   main.py            FastAPI: вэб дэлгүүр, /telegram/webhook, /qpay/callback, /health
-  web/               Вэб дэлгүүр: хуудсууд (templates/), захиалга, и-мэйлээр хүргэх
+  web/               Вэб дэлгүүр: нүүр, багцын жагсаалт (/esim), танилцуулга (/esim/<sku>),
+                     захиалга шалгах (/check); захиалга, и-мэйлээр хүргэх
   mailer.py          И-мэйл илгээх (SMTP, эсвэл локалд .eml файл)
   bot.py             Сувгаас хамааралгүй ботын логик (товчлуурын урсгал, төлбөр, хүргэлт)
   agent/
@@ -49,10 +50,10 @@ src/esim_bot/
   payments/fake.py   Локал туршилтын хуурамч QPay
   channels/          Telegram суваг (+ ирээдүйд Messenger)
   delivery.py        eSIM QR зураг, суулгах зааврын текст
-  catalog.py         data/catalog.yaml-аас улс, багц, лиценз унших
+  catalog.py         data/catalog.yaml-аас улс, бүс, багц, лиценз унших
   cli.py             Удирдлагын командууд
 data/
-  catalog.yaml       Улс, eSIM багц, Windows лиценз, үнэ
+  catalog.yaml       Улс, олон улсын бүс, eSIM багц, Windows лиценз, үнэ
   esims.example.csv  eSIM сангийн CSV загвар
   licenses.example.csv  Лицензийн түлхүүрийн CSV загвар (package_sku, product_key)
 ```

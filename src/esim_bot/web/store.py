@@ -50,8 +50,8 @@ class WebStore:
     def order_path(self, order: Order) -> str:
         return f"/order/{order.id}?t={self.orders.access_token(order.id)}"
 
-    async def checkout(self, sku: str, email: str) -> Order:
-        order, _ = await self.orders.create_order(self.channel, email, [sku])
+    async def checkout(self, sku: str, email: str, quantity: int = 1) -> Order:
+        order, _ = await self.orders.create_order(self.channel, email, [sku] * quantity)
         return order
 
     async def get_order(self, order_id: str, token: str) -> Order | None:

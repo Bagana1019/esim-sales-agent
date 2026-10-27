@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% from "_macros.html" import flag, icon %}
+{% from "_macros.html" import flag, icon, pkg_flag, pkg_name %}
 {% block title %}{{ shop }} — Дэлхийн дата 1 минутад{% endblock %}
 {% block content %}
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="hero-main">
-      <span class="eyebrow">eSIM · {{ groups|length }} улс · QPay</span>
+      <span class="eyebrow">eSIM · {{ covered }} улс · QPay</span>
       <h1>Дэлхийн дата <em>1&nbsp;минутад.</em></h1>
       <p>Роуминг төлбөр, сим солих төвөгтэй байдлыг март. Очих улсаа сонгоод, QPay-ээр төлөөд, QR кодоо уншуулаад л шууд интернэттэй холбогдоорой.</p>
-      <form class="search" role="search" action="#esim" data-search>
+      <form class="search" role="search" action="/esim" method="get">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7.5"/><path d="m17 17 4 4"/></svg>
-        <input type="search" placeholder="Улс хайх, жишээ нь Япон" aria-label="Улс хайх" autocomplete="off">
+        <input type="search" name="q" placeholder="Улс хайх, жишээ нь Япон" aria-label="Улс хайх" autocomplete="off">
         <button class="btn pill shine" type="submit">Хайх</button>
       </form>
       <div class="chips">
-        {% for country, packages in groups %}<a class="chip" href="#{{ country.code }}">{{ flag(country) }}{{ country.name }}</a>{% endfor %}
+        {% for country, packages in tiles %}<a class="chip" href="/esim?country={{ country.code }}">{{ flag(country) }}{{ country.name }}</a>{% endfor %}
         {% if licenses %}<a class="chip" href="#windows"><img class="ico" src="{{ asset('icons/laptop.webp') }}" alt="" width="64" height="64">Windows</a>{% endif %}
       </div>
     </div>
@@ -27,12 +27,11 @@
         <span class="float-badge b2">{{ icon("card", lazy=false) }}QPay</span>
       </div>
       {% if deal %}
-      {% set country, p = deal %}
-      <a class="offer" href="/checkout?sku={{ p.sku }}">
+      <a class="offer" href="/esim/{{ deal.sku }}">
         <span class="offer-label">Хамгийн хямд багц</span>
-        <span class="offer-title">{{ flag(country) }}{{ country.name }} · {{ p.days }} хоног, {{ p.data }}</span>
+        <span class="offer-title">{{ pkg_flag(deal) }}{{ pkg_name(deal) }} · {{ deal.days }} хоног, {{ deal.data }}</span>
         <span class="offer-text">Богино аялалд тохиромжтой. Төлбөр ормогц QR код и-мэйлээр очно.</span>
-        <span class="offer-price">{{ format_mnt(p.price_mnt) }}</span>
+        <span class="offer-price">{{ format_mnt(deal.price_mnt) }}</span>
         <span class="offer-go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       {% endif %}
@@ -43,7 +42,7 @@
 <div class="wrap">
   <ul class="features">
     <li class="reveal">{{ icon("bolt") }}<div><b>1 минутад холбогдоно</b><span>Төлбөр ормогц QR код ирнэ</span></div></li>
-    <li class="reveal" style="--d:1">{{ icon("signal") }}<div><b>{{ groups|length }} улсад ажиллана</b><span>{{ groups|map(attribute="0.name")|join(", ") }}</span></div></li>
+    <li class="reveal" style="--d:1">{{ icon("signal") }}<div><b>{{ covered }} улсад ажиллана</b><span>{{ tiles|map(attribute="0.name")|join(", ") }} болон олон улсын багц</span></div></li>
     <li class="reveal" style="--d:2">{{ icon("card") }}<div><b>QPay-ээр төлнө</b><span>Банкны аппаараа шууд</span></div></li>
     <li class="reveal" style="--d:3">{{ icon("mail") }}<div><b>И-мэйлээр хүргэнэ</b><span>QR код, суулгах зааврын хамт</span></div></li>
   </ul>
@@ -51,74 +50,21 @@
   <section class="section" id="esim">
     <div class="section-head reveal">
       <h2>Улс сонгох</h2>
-      <nav class="seg" aria-label="Бүтээгдэхүүн"><a class="on" href="#esim">eSIM</a><a href="#compare">Хүснэгт</a>{% if licenses %}<a href="#windows">Windows</a>{% endif %}</nav>
+      <nav class="seg" aria-label="Бүтээгдэхүүн"><a class="on" href="#esim">Улс</a><a href="/esim">Бүх багц</a>{% if licenses %}<a href="#windows">Windows</a>{% endif %}</nav>
     </div>
     <div class="dest-grid">
-      {% for country, packages in groups %}
-      <a class="tile dest reveal" style="--d:{{ loop.index0 }}" href="#{{ country.code }}" data-q="{{ ([country.name, country.code] + country.aliases|list)|join(' ')|lower }}">
+      {% for country, packages in tiles %}
+      <a class="tile dest reveal" style="--d:{{ loop.index0 }}" href="/esim?country={{ country.code }}">
         <span class="flag" aria-hidden="true">{{ flag(country) }}</span>
         <span class="dest-name"><b>{{ country.name }}</b><small>{{ packages|length }} багц</small></span>
         <span class="dest-price"><small>хамгийн хямд</small><b>{{ format_mnt(packages|map(attribute="price_mnt")|min) }}</b></span>
       </a>
       {% endfor %}
     </div>
-    <p class="empty" hidden data-empty>Ийм улс олдсонгүй. Өөр нэрээр хайж үзнэ үү.</p>
-  </section>
-
-  {% for country, packages in groups %}
-  <section class="country" id="{{ country.code }}" data-q="{{ ([country.name, country.code] + country.aliases|list)|join(' ')|lower }}">
-    <div class="country-head reveal">
-      <h2 class="sm">{{ flag(country) }}{{ country.name }}</h2>
-      <span>{{ packages|length }} багц</span>
-    </div>
-    {% if country.notes %}
-    <div class="note reveal">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5.5M12 7.5v.01"/></svg>
-      <span>{{ country.notes }}</span>
-    </div>
-    {% endif %}
-    <div class="plan-grid">
-      {% for p in packages %}
-      <a class="tile plan reveal" style="--d:{{ loop.index0 }}" href="/checkout?sku={{ p.sku }}">
-        <span class="plan-top"><span class="badge">{{ p.days }} хоног</span><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span></span>
-        <span class="plan-data">{{ p.data }}</span>
-        <span class="plan-foot"><span class="price">{{ format_mnt(p.price_mnt) }}</span><span class="buy">Авах</span></span>
-      </a>
-      {% endfor %}
-    </div>
-  </section>
-  {% endfor %}
-
-  <section class="section" id="compare">
-    <div class="section-head reveal">
-      <div><span class="kicker">Харьцуулах</span><h2>Бүх багц нэг дор</h2><p>Баганын нэр дээр дарж үнэ, хугацаагаар эрэмбэлнэ.</p></div>
-    </div>
-    <div class="table-wrap reveal">
-      <table class="table" data-sortable>
-        <thead>
-          <tr>
-            <th scope="col">Улс</th>
-            <th scope="col"><button class="sort" type="button" data-sort="days">Хугацаа</button></th>
-            <th scope="col">Дата</th>
-            <th scope="col" class="num-col"><button class="sort" type="button" data-sort="price">Үнэ</button></th>
-            <th scope="col" class="num-col"><button class="sort" type="button" data-sort="perday">Өдөрт</button></th>
-            <th scope="col"><span class="sr-only">Захиалах</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for country, packages in groups %}{% for p in packages %}
-          {% set per_day = (p.price_mnt / p.days)|round|int %}
-          <tr data-q="{{ ([country.name, country.code] + country.aliases|list)|join(' ')|lower }}" data-days="{{ p.days }}" data-price="{{ p.price_mnt }}" data-perday="{{ per_day }}">
-            <td><span class="cell-country">{{ flag(country) }}{{ country.name }}</span></td>
-            <td>{{ p.days }} хоног</td>
-            <td class="mono">{{ p.data }}</td>
-            <td class="mono num-col">{{ format_mnt(p.price_mnt) }}</td>
-            <td class="mono num-col muted">≈{{ format_mnt(per_day) }}</td>
-            <td><a class="btn pill sm" href="/checkout?sku={{ p.sku }}">Авах</a></td>
-          </tr>
-          {% endfor %}{% endfor %}
-        </tbody>
-      </table>
+    <div class="all-cta reveal">
+      <div><b>Бүх {{ total }} багц нэг дор</b><span>Улс, дата, хоногоор шүүж, үнээр нь харьцуулна.</span></div>
+      <a class="btn pill" href="/esim">Бүх багцыг харах →</a>
+      <a class="btn pill secondary" href="/esim?view=table">Хүснэгтээр харьцуулах</a>
     </div>
   </section>
 
@@ -147,7 +93,7 @@
           <tr><th scope="row">SIM карт солих шаардлагагүй</th><td class="hl"><i class="mark yes">✓</i><span class="sr-only">Тийм</span></td><td><i class="mark yes">✓</i><span class="sr-only">Тийм</span></td><td><i class="mark no">✕</i><span class="sr-only">Үгүй</span></td></tr>
           <tr><th scope="row">Үнэ урьдчилан тодорхой</th><td class="hl"><i class="mark yes">✓</i><span class="sr-only">Тийм</span></td><td><span class="partial">Багцаас хамаарна</span></td><td><i class="mark yes">✓</i><span class="sr-only">Тийм</span></td></tr>
           <tr><th scope="row">Төгрөгөөр төлнө</th><td class="hl"><i class="mark yes">✓</i><span class="sr-only">Тийм</span></td><td><i class="mark yes">✓</i><span class="sr-only">Тийм</span></td><td><i class="mark no">✕</i><span class="sr-only">Үгүй</span></td></tr>
-          <tr><th scope="row">Үнэ</th><td class="hl">{% if deal %}<b class="mono">{{ format_mnt(deal[1].price_mnt) }}</b>-өөс{% endif %}</td><td><span class="partial">Ихэвчлэн өндөр</span></td><td><span class="partial">Хямд ч очоод хайж авна</span></td></tr>
+          <tr><th scope="row">Үнэ</th><td class="hl">{% if deal %}<b class="mono">{{ format_mnt(deal.price_mnt) }}</b>-өөс{% endif %}</td><td><span class="partial">Ихэвчлэн өндөр</span></td><td><span class="partial">Хямд ч очоод хайж авна</span></td></tr>
         </tbody>
       </table>
     </div>

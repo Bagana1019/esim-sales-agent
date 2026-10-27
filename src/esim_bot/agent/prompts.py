@@ -94,7 +94,8 @@ def build_system_prompt(catalog: Catalog) -> str:
         if country.notes:
             lines.append(f"  Тэмдэглэл: {country.notes}")
         for p in catalog.packages_for(country.code):
-            lines.append(f"• {p.days} хоног / {p.data} - {format_mnt(p.price_mnt)} (sku: {p.sku})")
+            region = f"{p.region.name} ({len(p.region.countries)} улсад ажиллана) · " if p.region else ""
+            lines.append(f"• {region}{p.days} хоног / {p.data} - {format_mnt(p.price_mnt)} (sku: {p.sku})")
     if catalog.licenses:
         lines.append("🪟 Windows лиценз")
         for lic in catalog.licenses:
