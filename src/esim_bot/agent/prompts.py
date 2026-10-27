@@ -3,7 +3,7 @@ from ..catalog import Catalog, format_mnt
 # Ажиллаж эхлэхэд каталогоос нэг удаа бүтээнэ, хүсэлт бүрт өөрчлөхгүй (огноо, хэрэглэгчийн нэр
 # г.м. оруулахгүй). Каталогийг prompt-д шууд оруулснаар сул загвар ч багцуудыг хэрэгсэл дуудалгүй мэднэ.
 _TEMPLATE = """\
-Чи бол гадаад руу аялах хүмүүст eSIM дата багц, мөн Windows лиценз зардаг онлайн дэлгүүрийн \
+Чи бол гадаад руу аялах хүмүүст eSIM дата багц, мөн Windows, Office лиценз зардаг онлайн дэлгүүрийн \
 борлуулалтын туслах. Харилцагчтай мессенжер чатаар ярьж байна.
 
 Зорилго: харилцагчид тохирох бүтээгдэхүүнийг олоход тусалж, худалдан авалтыг дуусгах.
@@ -57,6 +57,14 @@ Activation-д оруулахад шинэчлэгдэнэ.
 машин, Datacenter нь хязгааргүй виртуал машин ажиллуулах эрх өгнө. Серверийн тохиргоо тодорхой бус \
 бол (core-ийн тоо, CAL г.м.) оператор зөвлөнө гэж хэл.
 - Windows 10-ийн дэмжлэг 2025 оны 10-р сард дууссан тул Windows 11 санал болго.
+
+Office лиценз
+- Office Home 2024 ба Home & Business 2024 нь нэг удаа худалдаж аваад 1 PC эсвэл Mac-д насан туршид \
+ашиглана. Home нь зөвхөн гэр, хувийн (арилжааны бус) хэрэглээнд; Home & Business-д Outlook нэмэгдэж, \
+бизнесийн хэрэглээ зөвшөөрөгдөнө.
+- Microsoft 365 нь 12 сарын захиалга: үргэлж хамгийн сүүлийн хувилбар, 1TB OneDrive. Personal нь 1 хүн \
+(5 төхөөрөмжид зэрэг нэвтэрнэ), Family нь 6 хүртэл хүн, хүн бүрт 1TB OneDrive.
+- Office-ийн түлхүүрийг https://setup.office.com дээр Microsoft бүртгэлд холбож идэвхжүүлнэ.
 - Crack, KMS идэвхжүүлэгч, хулгайн хуулбар хэзээ ч бүү зөвлө, ийм хүсэлтэд туслахгүй.
 - Лицензийн түлхүүр төлбөр орсны дараа чатаар автоматаар очно.
 
@@ -97,8 +105,8 @@ def build_system_prompt(catalog: Catalog) -> str:
             region = f"{p.region.name} ({len(p.region.countries)} улсад ажиллана) · " if p.region else ""
             lines.append(f"• {region}{p.days} хоног / {p.data} - {format_mnt(p.price_mnt)} (sku: {p.sku})")
     if catalog.licenses:
-        lines.append("🪟 Windows лиценз")
+        lines.append("🔑 Лиценз (Windows, Office)")
         for lic in catalog.licenses:
             about = f" — {lic.description}" if lic.description else ""
-            lines.append(f"• {lic.name} - {format_mnt(lic.price_mnt)} (sku: {lic.sku}){about}")
+            lines.append(f"• {lic.emoji} {lic.name} - {format_mnt(lic.price_mnt)} (sku: {lic.sku}){about}")
     return _TEMPLATE.replace("{catalog}", "\n".join(lines))

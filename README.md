@@ -36,8 +36,8 @@ QPay → /qpay/callback  (эсвэл харилцагч "Төлбөр шалга
 ```
 src/esim_bot/
   main.py            FastAPI: вэб дэлгүүр, /telegram/webhook, /qpay/callback, /health
-  web/               Вэб дэлгүүр: нүүр, багцын жагсаалт (/esim), танилцуулга (/esim/<sku>),
-                     захиалга шалгах (/check); захиалга, и-мэйлээр хүргэх
+  web/               Вэб дэлгүүр: нүүр, eSIM (/esim, /esim/<sku>), лиценз (/license, /license/<sku>),
+                     сим суулгах заавар (/install), түгээмэл асуулт (/faq), захиалга шалгах (/check)
   mailer.py          И-мэйл илгээх (SMTP, эсвэл локалд .eml файл)
   bot.py             Сувгаас хамааралгүй ботын логик (товчлуурын урсгал, төлбөр, хүргэлт)
   agent/

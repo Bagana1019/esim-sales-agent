@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, svg %}
+{% block title %}Лиценз{{ (": " ~ license_category(filters.category).label) if filters.category }} — {{ shop }}{% endblock %}
+{% block content %}
+{% set current = license_category(filters.category) if filters.category %}
+<section class="page-head">
+  <div class="wrap">
+    <nav class="crumbs" aria-label="Байршил"><a href="/">Нүүр</a><span aria-hidden="true">/</span><span>Лиценз</span></nav>
+    <h1>{% if current %}{{ icon(current.icon, "sm", lazy=false) }}{{ current.label }}{% else %}Windows, Office лиценз{% endif %}</h1>
+    <p>{{ licenses|length }} бүтээгдэхүүн · Төлбөр ормогц түлхүүр, идэвхжүүлэх заавар и-мэйлээр очно</p>
+  </div>
+</section>
+
+<div class="wrap shop">
+  <form class="filters" method="get" action="/license" data-filters>
+    <details open data-collapse>
+      <summary>{{ svg("filter") }}Шүүлтүүр{% if filters.active %}<span class="dot" aria-label="идэвхтэй"></span>{% endif %}</summary>
+      <div class="filters-body">
+        <div class="fgroup">
+          <span class="flabel">Ангилал</span>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="category" value=""{% if not filters.category %} checked{% endif %}><span>Бүгд</span></label>
+            {% for key, label in categories %}
+            <label class="opt"><input type="radio" name="category" value="{{ key }}"{% if filters.category == key %} checked{% endif %}><span>{{ icon(license_category(key).icon, "xs", lazy=false) }}{{ label }}</span></label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel" for="q">Нэрээр хайх</label>
+          <input id="q" class="finput" type="search" name="q" value="{{ filters.q }}" placeholder="Жишээ нь Pro, Outlook" autocomplete="off">
+        </div>
+        <div class="fgroup">
+          <label class="flabel" for="sort">Эрэмбэлэх</label>
+          <select id="sort" class="finput" name="sort">
+            {% for key, (label, _) in listing.LICENSE_SORTS.items() %}<option value="{{ key }}"{% if filters.sort == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        {% if filters.view == "table" %}<input type="hidden" name="view" value="table">{% endif %}
+        <div class="factions">
+          <button class="btn" type="submit" data-nojs>Шүүх</button>
+          {% if filters.active %}<a class="btn secondary" href="{{ filters.url(category='', q='') }}">Цэвэрлэх</a>{% endif %}
+        </div>
+      </div>
+    </details>
+  </form>
+
+  <div class="results">
+    <div class="results-head">
+      <div class="tags">
+        <b>{{ licenses|length }} бүтээгдэхүүн</b>
+        {% if current %}<a class="tag" href="{{ filters.url(category='') }}">{{ current.label }}{{ svg("x") }}</a>{% endif %}
+        {% if filters.q %}<a class="tag" href="{{ filters.url(q='') }}">“{{ filters.q }}”{{ svg("x") }}</a>{% endif %}
+      </div>
+      <nav class="seg" aria-label="Харагдац"><a{% if filters.view == "cards" %} class="on"{% endif %} href="{{ filters.url(view='cards') }}">Карт</a><a{% if filters.view == "table" %} class="on"{% endif %} href="{{ filters.url(view='table') }}">Хүснэгт</a></nav>
+    </div>
+
+    {% if not licenses %}
+    <div class="empty-state">
+      {{ icon("search", "lg") }}
+      <b>Таны шүүлтүүрт тохирох бүтээгдэхүүн олдсонгүй</b>
+      <a class="btn pill" href="{{ filters.url(category='', q='') }}">Шүүлтүүрийг цэвэрлэх</a>
+    </div>
+    {% elif filters.view == "table" %}
+    <div class="table-wrap">
+      <table class="table" data-sortable>
+        <thead>
+          <tr>
+            <th scope="col">Бүтээгдэхүүн</th>
+            <th scope="col">Ангилал</th>
+            <th scope="col">Төхөөрөмж</th>
+            <th scope="col">Хугацаа</th>
+            <th scope="col" class="num-col"><button class="sort" type="button" data-sort="price">Үнэ</button></th>
+            <th scope="col"><span class="sr-only">Дэлгэрэнгүй</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lic in licenses %}
+          <tr data-price="{{ lic.price_mnt }}">
+            <td><span class="cell-country">{{ icon(license_category(lic.category).icon, "xs") }}{{ lic.name }}</span></td>
+            <td class="muted">{{ license_category(lic.category).label }}</td>
+            <td>{{ lic.devices }}</td>
+            <td>{{ lic.term }}</td>
+            <td class="mono num-col">{{ format_mnt(lic.price_mnt) }}</td>
+            <td><a class="btn pill sm" href="/license/{{ lic.sku }}">Харах</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="pgrid">
+      {% for lic in licenses %}
+      <a class="tile pcard reveal" style="--d:{{ loop.index0 % 4 }}" href="/license/{{ lic.sku }}">
+        <span class="pcard-top">
+          <span class="pflag plain">{{ icon(license_category(lic.category).icon) }}</span>
+          <span class="badge{% if lic.category == 'office' %} blue{% endif %}">{{ license_category(lic.category).label }}</span>
+          <span class="pprice">{{ format_mnt(lic.price_mnt) }}</span>
+        </span>
+        <span class="pcard-title">{{ lic.name }}</span>
+        <span class="pcard-desc">{{ lic.description }}</span>
+        <span class="pspecs">
+          <span>{{ svg("device") }}{{ lic.devices }}</span>
+          <span>{{ svg("days") }}{{ lic.term }}</span>
+          <span>{{ svg("key") }}25 тэмдэгт түлхүүр</span>
+          <span>{{ svg("mail") }}И-мэйлээр шууд</span>
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

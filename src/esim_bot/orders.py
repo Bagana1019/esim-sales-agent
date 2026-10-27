@@ -73,7 +73,9 @@ class OrderService:
             f"?order_id={order_id}&token={self.callback_token(order_id)}"
         )
 
-    async def create_order(self, channel: str, chat_id: str, skus: list[str]) -> tuple[Order, Invoice]:
+    async def create_order(
+        self, channel: str, chat_id: str, skus: list[str], phone: str | None = None
+    ) -> tuple[Order, Invoice]:
         """Нэг эсвэл хэд хэдэн бүтээгдэхүүнд (eSIM багц, лиценз) нэг захиалга, нэг QPay нэхэмжлэх үүсгэнэ."""
         products = [self.catalog.product(sku) for sku in skus]
         if not products or None in products:
@@ -82,6 +84,7 @@ class OrderService:
             id=uuid4().hex,
             channel=channel,
             chat_id=chat_id,
+            phone=phone,
             package_skus=list(skus),
             amount_mnt=sum(p.price_mnt for p in products),
             status=OrderStatus.PENDING,

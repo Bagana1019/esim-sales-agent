@@ -63,10 +63,22 @@ class License:
     price_mnt: int
     description: str = ""  # хэнд тохирох, юу багтах — бот харилцагчид тайлбарлана
     activation: str = ""  # идэвхжүүлэх заавар — түлхүүрийн хамт илгээнэ
+    category: str = "windows"  # LICENSE_CATEGORIES-ийн түлхүүр
+    devices: str = ""  # хэдэн төхөөрөмж/хэрэглэгчид (жишээ нь "1 компьютер")
+    term: str = ""  # хугацаа (жишээ нь "Насан туршийн", "12 сар")
+    features: tuple[str, ...] = ()  # танилцуулга хуудсанд жагсаана
 
     @property
     def title(self) -> str:
         return f"{self.name} - {format_mnt(self.price_mnt)}"
+
+    @property
+    def emoji(self) -> str:
+        return LICENSE_CATEGORIES.get(self.category, LICENSE_CATEGORIES["windows"])[1]
+
+
+# Лицензийн ангилал: түлхүүр -> (нэр, emoji)
+LICENSE_CATEGORIES = {"windows": ("Windows", "🪟"), "server": ("Windows Server", "🖥"), "office": ("Office, Microsoft 365", "📝")}
 
 
 Product = Package | License
@@ -98,7 +110,7 @@ class Catalog:
         return cls(
             countries=[Country(**{**c, "aliases": tuple(c.get("aliases", ()))}) for c in raw["countries"]],
             packages=[Package(**{**p, "region": regions[p["region"]] if "region" in p else None}) for p in raw["packages"]],
-            licenses=[License(**lic) for lic in raw.get("licenses", [])],
+            licenses=[License(**{**lic, "features": tuple(lic.get("features", ()))}) for lic in raw.get("licenses", [])],
         )
 
     def country(self, query: str) -> Country | None:

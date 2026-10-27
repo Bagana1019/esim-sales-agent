@@ -145,3 +145,23 @@ async def test_license_out_of_stock(orders, qpay):
     qpay.mark_all_paid()
     result = await orders.process_payment(order.id, DeliverySpy())
     assert result.outcome == PaymentOutcome.OUT_OF_STOCK
+
+
+async def test_old_database_gets_phone_column_without_losing_orders(tmp_path):
+    from sqlalchemy import text
+
+    from esim_bot.db import Database, Order
+
+    db = Database(f"sqlite+aiosqlite:///{tmp_path}/old.db")
+    await db.create_all()
+    async with db.engine.begin() as conn:  # phone баганагүй хуучин сан болгоно
+        await conn.execute(text("ALTER TABLE orders DROP COLUMN phone"))
+        await conn.execute(
+            text("INSERT INTO orders (id, channel, chat_id, package_skus, amount_mnt, status, created_at) "
+                 "VALUES ('old1', 'web', 'a@example.com', '[\"CN-3D-1GB\"]', 15000, 'delivered', CURRENT_TIMESTAMP)")
+        )
+    await db.create_all()
+    async with db.session() as s:
+        old = await s.get(Order, "old1")
+        assert old.chat_id == "a@example.com" and old.phone is None
+    await db.dispose()

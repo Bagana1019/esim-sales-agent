@@ -191,5 +191,5 @@ def test_system_prompt_lists_licenses(catalog):
     from esim_bot.agent.prompts import build_system_prompt
 
     prompt = build_system_prompt(catalog)
-    assert "🪟 Windows лиценз" in prompt
-    assert "• Windows 11 Pro - 150,000₮ (sku: WIN11-PRO) — Ажил, оффис" in prompt
+    assert "🔑 Лиценз (Windows, Office)" in prompt
+    assert "• 🪟 Windows 11 Pro - 150,000₮ (sku: WIN11-PRO) — Ажил, оффис" in prompt

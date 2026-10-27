@@ -18,7 +18,7 @@ DEFAULT_ACTIVATION = "Settings → System → Activation → Change product key 
 
 def product_label(catalog: Catalog, sku: str) -> str:
     if lic := catalog.license(sku):
-        return f"🪟 {lic.name}"
+        return f"{lic.emoji} {lic.name}"
     package = catalog.package(sku)
     if package is None:
         return sku

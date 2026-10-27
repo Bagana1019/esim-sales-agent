@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_macros.html" import buybox, icon, mbar, svg %}
+{% block title %}{{ license.name }} — {{ shop }}{% endblock %}
+{% block content %}
+{% set cat = license_category(license.category) %}
+<div class="wrap page">
+  <nav class="crumbs" aria-label="Байршил">
+    <a href="/">Нүүр</a><span aria-hidden="true">/</span>
+    <a href="/license?category={{ license.category }}">{{ cat.label }}</a><span aria-hidden="true">/</span>
+    <span>{{ license.name }}</span>
+  </nav>
+
+  <div class="detail">
+    <div class="detail-main">
+      <section class="dhero">
+        <span class="dflag plain">{{ icon(cat.icon, lazy=false) }}</span>
+        <h1>{{ license.name }}</h1>
+        <p>{{ license.description }}</p>
+        <div class="dchips">
+          {% if license.term %}<span>{{ svg("days") }}{{ license.term }}</span>{% endif %}
+          {% if license.devices %}<span>{{ svg("device") }}{{ license.devices }}</span>{% endif %}
+          <span>{{ svg("key") }}{{ cat.label }}</span>
+        </div>
+      </section>
+
+      {% if license.features %}
+      <section class="dsection">
+        <h2 class="sm">Багтсан боломжууд</h2>
+        <ul class="facts cols">
+          {% for feature in license.features %}<li>{{ svg("check") }}<span>{{ feature }}</span></li>{% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      <section class="dsection">
+        <h2 class="sm">Хэрхэн авах вэ</h2>
+        <ul class="facts">
+          <li>{{ svg("check") }}<span>Төлбөр ормогц 25 тэмдэгт бүтээгдэхүүний түлхүүр, идэвхжүүлэх зааврын хамт таны и-мэйл рүү очно.</span></li>
+          <li>{{ svg("check") }}<span>Олон ширхэг авбал түлхүүр тус бүр тусдаа очно.</span></li>
+          <li>{{ svg("check") }}<span>Түлхүүрээ алдвал <a href="/check">Захиалга шалгах</a> хуудаснаас дахин харна.</span></li>
+        </ul>
+      </section>
+
+      {% if license.activation %}
+      <section class="dsection">
+        <h2 class="sm">Идэвхжүүлэх заавар</h2>
+        <pre class="steps">{{ license.activation }}</pre>
+      </section>
+      {% endif %}
+    </div>
+
+    <aside class="summary">
+      {{ buybox(license.sku, license.price_mnt, [("Ангилал", cat.label), ("Төхөөрөмж", license.devices), ("Хугацаа", license.term)],
+                "Лицензийн түлхүүр", max_quantity, quantity or 1, email, phone, error) }}
+    </aside>
+  </div>
+  {{ mbar(license.name, license.price_mnt) }}
+
+  {% if related %}
+  <section class="section">
+    <div class="section-head"><h2 class="sm">Ижил ангиллын бусад лиценз</h2><a href="/license?category={{ license.category }}">Бүгдийг харах →</a></div>
+    <div class="pgrid related">
+      {% for lic in related %}
+      <a class="tile pcard" href="/license/{{ lic.sku }}">
+        <span class="pcard-top"><span class="pflag plain">{{ icon(cat.icon) }}</span><span class="badge">{{ lic.term }}</span><span class="pprice">{{ format_mnt(lic.price_mnt) }}</span></span>
+        <span class="pcard-title">{{ lic.name }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

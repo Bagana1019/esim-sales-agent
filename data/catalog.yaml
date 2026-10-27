@@ -127,38 +127,99 @@ packages:
   - {sku: GL152-30D-5GB, country: TH, region: GL152, days: 30, data: "Нийт 5GB", gb: 5, price_mnt: 102000}
   - {sku: GL152-30D-10GB, country: TH, region: GL152, days: 30, data: "Нийт 10GB", gb: 10, price_mnt: 167000}
 
-# Windows лиценз. ҮНЭ НЬ ЖИШЭЭ — бодит худалдан авах үнэдээ тулгуурлан заавал солино уу.
+# Лиценз (Windows, Windows Server, Office). ҮНЭ НЬ ЖИШЭЭ — бодит худалдан авах үнэдээ тулгуурлан заавал солино уу.
 # Түлхүүрийг Microsoft-ын албан ёсны дистрибьютер/борлуулагчаас авна (OEM/volume түлхүүрийг дангаар
 # нь дахин зарах нь Microsoft-ын лицензийн нөхцөлийг зөрчиж, түлхүүр хүчингүй болох эрсдэлтэй).
+# category: windows | server | office — вэбийн лицензийн хуудасны ангилал.
+# Түлхүүрийг `esim import-licenses`-ээр санд нэмнэ — сан хоосон бол төлбөр орсон ч түлхүүр олгогдохгүй.
 licenses:
   - sku: WIN11-HOME
     name: Windows 11 Home
+    category: windows
     price_mnt: 100000
+    devices: 1 компьютер
+    term: Насан туршийн
     description: Гэрийн болон хувийн хэрэглээ, 1 компьютер
+    features: [Windows 11-ийн бүх үндсэн боломж, Windows Hello, Microsoft Defender хамгаалалт, Аюулгүй байдлын шинэчлэлт]
     activation: &win11 |-
       1. Settings → System → Activation → "Change product key"-г дарна.
       2. Түлхүүрээ оруулаад Next дарна.
       Windows 11 суулгах файл хэрэгтэй бол: https://www.microsoft.com/software-download/windows11
   - sku: WIN11-PRO
     name: Windows 11 Pro
+    category: windows
     price_mnt: 150000
+    devices: 1 компьютер
+    term: Насан туршийн
     description: Ажил, оффис — BitLocker, Remote Desktop, Hyper-V, домэйнд нэгдэх; 1 компьютер
+    features: [Home-ийн бүх боломж, BitLocker дискний шифрлэлт, Remote Desktop-оор холбогдох, Hyper-V виртуал машин, "Домэйнд нэгдэх, Group Policy"]
     activation: *win11
   - sku: WIN11-PRO-WS
     name: Windows 11 Pro for Workstations
+    category: windows
     price_mnt: 250000
+    devices: 1 компьютер
+    term: Насан туршийн
     description: Олон процессор, их RAM-тай хүчирхэг ажлын станц; 1 компьютер
+    features: [Pro-гийн бүх боломж, 4 хүртэл процессор, 6TB хүртэл RAM, ReFS файлын систем, SMB Direct]
     activation: *win11
   - sku: WINSRV25-STD
     name: Windows Server 2025 Standard (16 core)
+    category: server
     price_mnt: 1500000
+    devices: 16 core
+    term: Насан туршийн
     description: Сервер, 16 core, 2 виртуал машин
+    features: [16 core-ийн үндсэн лиценз, 2 виртуал машин, Active Directory, "Файл, хэвлэх сервер"]
     activation: &server |-
       Command Prompt-ийг "Run as administrator"-оор нээгээд:
       slmgr /ipk <түлхүүр>
       slmgr /ato
   - sku: WINSRV25-DC
     name: Windows Server 2025 Datacenter (16 core)
+    category: server
     price_mnt: 5000000
+    devices: 16 core
+    term: Насан туршийн
     description: Сервер, 16 core, хязгааргүй виртуал машин
+    features: [16 core-ийн үндсэн лиценз, Хязгааргүй виртуал машин, Storage Spaces Direct, Software-defined networking]
     activation: *server
+  - sku: OFFICE24-HOME
+    name: Office Home 2024
+    category: office
+    price_mnt: 150000
+    devices: 1 PC эсвэл Mac
+    term: Насан туршийн
+    description: Гэрийн, хувийн хэрэглээ (арилжааны бус); Word, Excel, PowerPoint, OneNote
+    features: [Word, Excel, PowerPoint, OneNote, Нэг удаа худалдаж авна, Арилжааны бус хэрэглээнд]
+    activation: &office |-
+      1. https://setup.office.com хаягаар орж Microsoft бүртгэлээрээ нэвтэрнэ.
+      2. 25 тэмдэгт түлхүүрээ оруулна — лиценз таны бүртгэлд холбогдоно.
+      3. https://account.microsoft.com/services хуудаснаас Office-оо татаж суулгана.
+  - sku: OFFICE24-HB
+    name: Office Home & Business 2024
+    category: office
+    price_mnt: 250000
+    devices: 1 PC эсвэл Mac
+    term: Насан туршийн
+    description: Бизнесийн хэрэглээ зөвшөөрнө; Word, Excel, PowerPoint, OneNote, Outlook
+    features: [Word, Excel, PowerPoint, OneNote, Outlook, Нэг удаа худалдаж авна, Бизнесийн хэрэглээнд зөвшөөрнө]
+    activation: *office
+  - sku: M365-PERSONAL
+    name: Microsoft 365 Personal (12 сар)
+    category: office
+    price_mnt: 120000
+    devices: 1 хэрэглэгч, 5 төхөөрөмж зэрэг
+    term: 12 сар
+    description: 1 хүн; Word, Excel, PowerPoint, Outlook, 1TB OneDrive; үргэлж шинэ хувилбар
+    features: [Word, Excel, PowerPoint, Outlook, OneNote, 1TB OneDrive, "PC, Mac, утас, таблетад ашиглана"]
+    activation: *office
+  - sku: M365-FAMILY
+    name: Microsoft 365 Family (12 сар)
+    category: office
+    price_mnt: 180000
+    devices: 6 хүртэл хүн
+    term: 12 сар
+    description: Гэр бүлийн 6 хүртэл хүн; хүн бүрт 1TB OneDrive
+    features: [6 хүртэл хүн хуваалцана, Хүн бүрт 1TB OneDrive, Word, Excel, PowerPoint, Outlook, "PC, Mac, утас, таблетад ашиглана"]
+    activation: *office

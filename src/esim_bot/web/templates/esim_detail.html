@@ -1,8 +1,7 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, pkg_flag, pkg_name, places, svg %}
+{% from "_macros.html" import buybox, icon, mbar, pkg_flag, pkg_name, places, svg %}
 {% block title %}{{ pkg_name(package) }} · {{ package.days }} хоног, {{ package.data }} — {{ shop }}{% endblock %}
 {% block content %}
-{% set qty = quantity or 1 %}
 <div class="wrap page">
   <nav class="crumbs" aria-label="Байршил">
     <a href="/">Нүүр</a><span aria-hidden="true">/</span>
@@ -64,35 +63,11 @@
     </div>
 
     <aside class="summary">
-      <form class="card buybox" id="buy" method="post" action="/checkout" data-buy data-price="{{ package.price_mnt }}">
-        <h2 class="sm">Хураангуй</h2>
-        <div class="row"><span>Хугацаа</span><b>{{ package.days }} хоног</b></div>
-        <div class="row"><span>Дата</span><b>{{ package.data }}</b></div>
-        <div class="row"><span>Хамрах хүрээ</span><b>{{ package.countries|length }} улс</b></div>
-        <div class="row"><span>Үнэ</span><b class="mono">{{ format_mnt(package.price_mnt) }}</b></div>
-        <div class="row qty-row">
-          <label for="quantity">Тоо ширхэг</label>
-          <span class="stepper">
-            <button type="button" data-step="-1" aria-label="Хасах">−</button>
-            <input id="quantity" name="quantity" type="number" min="1" max="{{ max_quantity }}" value="{{ qty }}" inputmode="numeric">
-            <button type="button" data-step="1" aria-label="Нэмэх">+</button>
-          </span>
-        </div>
-        <div class="note">{{ svg("info") }}<span>eSIM-ийн QR код и-мэйлээр очих тул хаягаа зөв бичээрэй. Олон ширхэг авбал eSIM бүр тусдаа QR-тэй.</span></div>
-        <input type="hidden" name="sku" value="{{ package.sku }}">
-        <label class="sr-only" for="email">И-мэйл хаяг</label>
-        <input id="email" name="email" type="email" required autocomplete="email" placeholder="И-мэйл хаяг" value="{{ email or '' }}">
-        {% if error %}<div class="error">{{ error }}</div>{% endif %}
-        <div class="row total"><span>Нийт үнэ</span><b data-total>{{ format_mnt(package.price_mnt * qty) }}</b></div>
-        <button class="btn shine" type="submit">QPay-ээр төлөх</button>
-        <div class="secure">{{ icon("lock", "sm", lazy=false) }}<div><b>QPay-ээр аюулгүй төлнө</b>Банкны аппаараа QR уншуулж эсвэл аппаа сонгоод төлнө.</div></div>
-      </form>
+      {{ buybox(package.sku, package.price_mnt, [("Хугацаа", package.days ~ " хоног"), ("Дата", package.data), ("Хамрах хүрээ", package.countries|length ~ " улс")],
+                "eSIM-ийн QR код", max_quantity, quantity or 1, email, phone, error) }}
     </aside>
   </div>
-  <div class="mbar" data-mbar>
-    <div><span>{{ package.days }} хоног · {{ package.data }}</span><b class="mono">{{ format_mnt(package.price_mnt) }}</b></div>
-    <a class="btn pill" href="#buy">Захиалах</a>
-  </div>
+  {{ mbar(package.days ~ " хоног · " ~ package.data, package.price_mnt) }}
 
   {% if related %}
   <section class="section">

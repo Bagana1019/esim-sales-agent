@@ -19,8 +19,8 @@ log = logging.getLogger(__name__)
 
 WELCOME = (
     "Сайн байна уу! 👋 Гадаадад аялахдаа роуминг төлөхгүйгээр интернэт хэрэглэх eSIM багц болон "
-    "Windows лиценз санал болгож байна.\n\n"
-    "eSIM авах бол очих улсаа, лиценз авах бол \"Windows лиценз\"-ийг сонгоно уу. Асуух зүйлээ чөлөөтэй бичиж болно."
+    "Windows, Office лиценз санал болгож байна.\n\n"
+    "eSIM авах бол очих улсаа, лиценз авах бол \"Windows, Office лиценз\"-ийг сонгоно уу. Асуух зүйлээ чөлөөтэй бичиж болно."
 )
 
 
@@ -84,15 +84,15 @@ class SalesBot:
     async def show_countries(self, channel: Channel, chat_id: str, text: str = "Очих улсаа сонгоно уу:") -> None:
         buttons = [[Button(c.label, data=f"c:{c.code}")] for c in self.catalog.countries]
         if self.catalog.licenses:
-            buttons.append([Button("🪟 Windows лиценз", data="lic")])
+            buttons.append([Button("🔑 Windows, Office лиценз", data="lic")])
         await channel.send_text(chat_id, text, buttons)
 
     async def show_licenses(self, channel: Channel, chat_id: str) -> bool:
         if not self.catalog.licenses:
             return False
-        buttons: Keyboard = [[Button(lic.title, data=f"p:{lic.sku}")] for lic in self.catalog.licenses]
+        buttons: Keyboard = [[Button(f"{lic.emoji} {lic.title}", data=f"p:{lic.sku}")] for lic in self.catalog.licenses]
         buttons.append([Button("⬅️ Буцах", data="menu")])
-        await channel.send_text(chat_id, "🪟 Windows лиценз - сонгоно уу:", buttons)
+        await channel.send_text(chat_id, "🔑 Лиценз - сонгоно уу:", buttons)
         return True
 
     async def show_packages(self, channel: Channel, chat_id: str, country_code: str) -> bool:
