@@ -89,7 +89,7 @@ class WebStore:
             return None
         if result.outcome == PaymentOutcome.OUT_OF_STOCK and result.newly_failed:
             order = result.order
-            await self.mailer.send(
+            await self._mail(
                 order.chat_id,
                 f"{self.shop_name} - захиалга #{order.id[:8]} төлбөр баталгаажлаа",
                 "Төлбөр баталгаажлаа. Таны захиалгыг бэлтгэж байна, удахгүй энэ и-мэйлээр илгээнэ.\n\n"
@@ -114,9 +114,16 @@ class WebStore:
             parts.append(f"Алхам алхмаар суулгах заавар: {self.public_base_url}/install")
         parts += [license_message(self.catalog, order, key) for key in items if isinstance(key, LicenseKey)]
         parts.append(f"Захиалгаа хэзээ ч эндээс харж болно: {self.public_base_url}{self.order_path(order)}")
-        await self.mailer.send(
-            order.chat_id, f"{self.shop_name} - захиалга #{order.id[:8]}", "\n\n".join(parts), attachments
-        )
+        await self._mail(order.chat_id, f"{self.shop_name} - захиалга #{order.id[:8]}", "\n\n".join(parts), attachments)
+
+    async def _mail(self, to: str, subject: str, body: str, attachments: list[Attachment] | None = None) -> None:
+        """И-мэйл илгээнэ. Илгээж чадаагүй ч захиалгыг зогсоохгүй (QR код, түлхүүр захиалгын хуудсанд
+        гарсаар) — админд мэдэгдэнэ."""
+        try:
+            await self.mailer.send(to, subject, body, attachments)
+        except Exception as e:
+            log.exception("И-мэйл илгээж чадсангүй: %s", to)
+            await self.notify_admin(f"⚠️ {to} руу и-мэйл илгээж чадсангүй ({subject}): {e}")
 
     async def order_view(self, order: Order) -> dict[str, Any]:
         """Захиалгын хуудсанд харуулах өгөгдөл."""

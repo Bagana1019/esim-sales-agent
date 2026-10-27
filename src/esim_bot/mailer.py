@@ -1,4 +1,4 @@
-"""И-мэйл илгээх. SMTP тохируулаагүй бол (локал туршилт) .eml файл болгон хадгална."""
+"""И-мэйл илгээх: Mailgun API, SMTP, эсвэл (локал туршилт) .eml файл болгон хадгална."""
 
 import asyncio
 import logging
@@ -9,7 +9,15 @@ from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
 
+import httpx
+
 log = logging.getLogger(__name__)
+
+MAILGUN_API = {"us": "https://api.mailgun.net", "eu": "https://api.eu.mailgun.net"}
+
+
+class MailError(Exception):
+    pass
 
 
 @dataclass
@@ -41,6 +49,9 @@ class SmtpMailer:
         self.username, self.password = username, password
         self.sender = sender
 
+    def __str__(self) -> str:
+        return f"SMTP ({self.host}:{self.port})"
+
     async def send(self, to: str, subject: str, body: str, attachments: list[Attachment] | None = None) -> None:
         msg = build_message(self.sender, to, subject, body, attachments)
         await asyncio.to_thread(self._send, msg)
@@ -57,12 +68,49 @@ class SmtpMailer:
             server.send_message(msg)
 
 
+class MailgunMailer:
+    """Mailgun-ы HTTP API-аар илгээнэ (SMTP порт хаалттай серверт ч ажиллана)."""
+
+    def __init__(self, http: httpx.AsyncClient, api_key: str, domain: str, sender: str, region: str = "us"):
+        base = MAILGUN_API.get(region.strip().lower())
+        if base is None:
+            raise ValueError(f"MAILGUN_REGION нь us эсвэл eu байна, {region!r} биш")
+        self.http = http
+        self.api_key = api_key
+        self.url = f"{base}/v3/{domain}/messages"
+        self.sender = sender
+
+    def __str__(self) -> str:
+        return f"Mailgun ({self.url})"
+
+    async def send(self, to: str, subject: str, body: str, attachments: list[Attachment] | None = None) -> None:
+        resp = await self.http.post(
+            self.url,
+            auth=("api", self.api_key),
+            data={"from": self.sender, "to": to, "subject": subject, "text": body},
+            files=[("attachment", (a.filename, a.content, a.mime)) for a in attachments or []],
+        )
+        if resp.status_code != 200:
+            raise MailError(f"Mailgun {resp.status_code}: {_mailgun_error(resp)}")
+        log.info("И-мэйл Mailgun-аар илгээгдлээ: %s (%s)", to, resp.json().get("id"))
+
+
+def _mailgun_error(resp: httpx.Response) -> str:
+    try:
+        return resp.json().get("message") or resp.text
+    except ValueError:  # 401 үед JSON биш "Forbidden" гэж ирдэг
+        return resp.text.strip()
+
+
 class FileMailer:
     """Локал туршилтад: и-мэйлийг илгээхгүй, outbox хавтаст .eml файл болгон хадгална."""
 
     def __init__(self, outbox: str | Path, sender: str):
         self.outbox = Path(outbox)
         self.sender = sender
+
+    def __str__(self) -> str:
+        return f"файл ({self.outbox}) — Mailgun, SMTP тохируулаагүй тул илгээхгүй"
 
     async def send(self, to: str, subject: str, body: str, attachments: list[Attachment] | None = None) -> None:
         msg = build_message(self.sender, to, subject, body, attachments)

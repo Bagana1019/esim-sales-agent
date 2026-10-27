@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.warning("TELEGRAM_WEBHOOK_SECRET тохируулаагүй — webhook-ийг хэн ч дуудаж болно")
     app.state.settings = settings
     app.state.services = await build_services(settings)
+    log.info("И-мэйл: %s", app.state.services.web.mailer)
     yield
     await app.state.services.aclose()
 

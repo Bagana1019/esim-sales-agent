@@ -13,7 +13,7 @@ from .config import Settings
 from .db import Database
 from .fulfillment import PoolProvider
 from .inventory import seed_demo_stock
-from .mailer import FileMailer, Mailer, SmtpMailer
+from .mailer import FileMailer, Mailer, MailgunMailer, SmtpMailer
 from .orders import OrderService
 from .payments.fake import FakeQPay
 from .payments.qpay import PaymentGateway, QPayClient
@@ -33,6 +33,19 @@ class Services:
     async def aclose(self) -> None:
         await self.http.aclose()
         await self.db.dispose()
+
+
+def build_mailer(settings: Settings, http: httpx.AsyncClient) -> Mailer:
+    """Mailgun тохируулсан бол Mailgun, үгүй бол SMTP, аль нь ч үгүй бол .eml файл."""
+    if settings.mailgun_api_key and settings.mailgun_domain:
+        return MailgunMailer(
+            http, settings.mailgun_api_key, settings.mailgun_domain, settings.sender, settings.mailgun_region
+        )
+    if settings.smtp_host:
+        return SmtpMailer(
+            settings.smtp_host, settings.smtp_port, settings.smtp_username, settings.smtp_password, settings.sender
+        )
+    return FileMailer(settings.email_outbox_dir, settings.sender)
 
 
 async def build_services(
@@ -86,17 +99,10 @@ async def build_services(
 
     bot = SalesBot(catalog, orders, agent, channels, admin)
 
-    mailer: Mailer
-    if settings.smtp_host:
-        mailer = SmtpMailer(
-            settings.smtp_host, settings.smtp_port, settings.smtp_username, settings.smtp_password, settings.smtp_from
-        )
-    else:
-        mailer = FileMailer(settings.email_outbox_dir, settings.smtp_from)
     web = WebStore(
         catalog,
         orders,
-        mailer,
+        build_mailer(settings, http),
         shop_name=settings.shop_name,
         public_base_url=settings.public_base_url,
         notify_admin=bot.notify_admin,
