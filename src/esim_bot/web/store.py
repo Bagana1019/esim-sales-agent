@@ -23,6 +23,16 @@ def is_valid_email(email: str) -> bool:
     return len(email) <= 254 and bool(EMAIL_RE.match(email))
 
 
+def normalize_phone(phone: str) -> str | None:
+    """Монголын 8 оронтой дугаар (99112233) эсвэл +-тэй олон улсын дугаар; буруу бол None."""
+    compact = re.sub(r"[\s\-().]", "", phone)
+    if re.fullmatch(r"(\+?976)?\d{8}", compact):
+        return compact[-8:]  # Монголын дугаарыг 8 оронгоор хадгална
+    if re.fullmatch(r"\+\d{8,15}", compact):
+        return compact
+    return None
+
+
 def png_data_uri(png: bytes) -> str:
     return "data:image/png;base64," + base64.b64encode(png).decode()
 
@@ -50,8 +60,8 @@ class WebStore:
     def order_path(self, order: Order) -> str:
         return f"/order/{order.id}?t={self.orders.access_token(order.id)}"
 
-    async def checkout(self, sku: str, email: str, quantity: int = 1) -> Order:
-        order, _ = await self.orders.create_order(self.channel, email, [sku] * quantity)
+    async def checkout(self, sku: str, email: str, phone: str, quantity: int = 1) -> Order:
+        order, _ = await self.orders.create_order(self.channel, email, [sku] * quantity, phone=phone)
         return order
 
     async def get_order(self, order_id: str, token: str) -> Order | None:
@@ -83,7 +93,10 @@ class WebStore:
                 "Төлбөр баталгаажлаа. Таны захиалгыг бэлтгэж байна, удахгүй энэ и-мэйлээр илгээнэ.\n\n"
                 f"Захиалгаа эндээс харж болно: {self.public_base_url}{self.order_path(order)}",
             )
-            await self.notify_admin(f"⚠️ Вэб захиалга {order.id} төлөгдсөн боловч сан дутуу ({', '.join(order.package_skus)}).")
+            await self.notify_admin(
+                f"⚠️ Вэб захиалга {order.id} төлөгдсөн боловч сан дутуу ({', '.join(order.package_skus)}). "
+                f"Харилцагч: {order.chat_id}, утас {order.phone or '-'}"
+            )
         return result
 
     async def _deliver(self, order: Order, items: list[Item]) -> None:
@@ -95,6 +108,8 @@ class WebStore:
             attachments.append(Attachment(f"esim-{n}.png", qr_png(profile.lpa_string)))
         if len(esims) > 1:
             parts.append(multi_esim_note(len(esims)))
+        if esims:
+            parts.append(f"Алхам алхмаар суулгах заавар: {self.public_base_url}/install")
         parts += [license_message(self.catalog, order, key) for key in items if isinstance(key, LicenseKey)]
         parts.append(f"Захиалгаа хэзээ ч эндээс харж болно: {self.public_base_url}{self.order_path(order)}")
         await self.mailer.send(

@@ -15,7 +15,7 @@
       </form>
       <div class="chips">
         {% for country, packages in tiles %}<a class="chip" href="/esim?country={{ country.code }}">{{ flag(country) }}{{ country.name }}</a>{% endfor %}
-        {% if licenses %}<a class="chip" href="#windows"><img class="ico" src="{{ asset('icons/laptop.webp') }}" alt="" width="64" height="64">Windows</a>{% endif %}
+        {% if license_groups %}<a class="chip" href="/license"><img class="ico" src="{{ asset('icons/key.webp') }}" alt="" width="64" height="64">Windows, Office</a>{% endif %}
       </div>
     </div>
     <div class="hero-side">
@@ -50,7 +50,7 @@
   <section class="section" id="esim">
     <div class="section-head reveal">
       <h2>Улс сонгох</h2>
-      <nav class="seg" aria-label="Бүтээгдэхүүн"><a class="on" href="#esim">Улс</a><a href="/esim">Бүх багц</a>{% if licenses %}<a href="#windows">Windows</a>{% endif %}</nav>
+      <nav class="seg" aria-label="Бүтээгдэхүүн"><a class="on" href="#esim">Улс</a><a href="/esim">Бүх багц</a>{% if license_groups %}<a href="/license">Лиценз</a>{% endif %}</nav>
     </div>
     <div class="dest-grid">
       {% for country, packages in tiles %}
@@ -99,33 +99,41 @@
     </div>
   </section>
 
-  {% if licenses %}
-  <section class="section" id="windows">
-    <div class="section-head reveal"><h2 class="with-icon">{{ icon("laptop", "sm") }}Windows лиценз</h2></div>
-    <div class="plan-grid wide">
-      {% for lic in licenses %}
-      <a class="tile plan reveal" style="--d:{{ loop.index0 % 3 }}" href="/checkout?sku={{ lic.sku }}">
-        <span class="plan-name">{{ lic.name }}</span>
-        {% if lic.description %}<span class="plan-desc">{{ lic.description }}</span>{% endif %}
-        <span class="plan-foot"><span class="price">{{ format_mnt(lic.price_mnt) }}</span><span class="buy">Авах</span></span>
+  {% if license_groups %}
+  <section class="section" id="license">
+    <div class="section-head reveal">
+      <div><span class="kicker">Лиценз</span><h2>Windows, Office лиценз</h2></div>
+      <a class="btn pill secondary" href="/license">Бүх лиценз →</a>
+    </div>
+    <div class="dest-grid">
+      {% for key, label, group in license_groups %}
+      <a class="tile dest reveal" style="--d:{{ loop.index0 }}" href="/license?category={{ key }}">
+        <span class="flag plain" aria-hidden="true">{{ icon(license_category(key).icon) }}</span>
+        <span class="dest-name"><b>{{ label }}</b><small>{{ group|length }} бүтээгдэхүүн</small></span>
+        <span class="dest-price"><small>хамгийн хямд</small><b>{{ format_mnt(group|map(attribute="price_mnt")|min) }}</b></span>
       </a>
       {% endfor %}
     </div>
   </section>
   {% endif %}
 
-  <section class="section" id="faq">
-    <div class="section-head reveal"><div><span class="kicker">Тусламж</span><h2 class="with-icon">{{ icon("chat", "sm") }}Түгээмэл асуулт</h2></div></div>
-    <div class="faq reveal">
-      <details><summary>Миний утас eSIM дэмжих үү?</summary>
-        <p>iPhone XS/XR ба түүнээс хойшх, Samsung Galaxy S20 ба түүнээс хойшх, Google Pixel 3 ба түүнээс хойшх ихэнх загвар дэмждэг.
-        Шалгах арга: утсандаа <b>*#06#</b> залгахад EID дугаар гарч ирвэл дэмждэг. Утас operator-lock-гүй байх ёстой.</p></details>
-      <details><summary>Захиалга хэрхэн ирэх вэ?</summary>
-        <p>Төлбөр ормогц eSIM-ийн QR код (эсвэл лицензийн түлхүүр), суулгах зааврын хамт захиалгын хуудсанд гарч, таны и-мэйл рүү очно.</p></details>
-      <details><summary>eSIM-ээ хэзээ суулгах вэ?</summary>
-        <p>Аялахаасаа өмнө Wi-Fi-тэй газар суулгаад, очсон газраа тухайн eSIM дээр Data Roaming-ийг асаана.</p></details>
-      <details><summary>QR кодоо гээчихвэл яах вэ?</summary>
-        <p><a href="/check">Захиалга шалгах</a> хуудсанд захиалгын дугаар, и-мэйлээ оруулаад QR код, суулгах зааврыг дахин харна.</p></details>
+  <section class="section" id="help">
+    <div class="help-cards">
+      <a class="tile help-card reveal" href="/install">
+        {{ icon("guide") }}
+        <span><b>Сим суулгах заавар</b><small>iPhone, Samsung, Android — алхам алхмаар</small></span>
+        <span class="go" aria-hidden="true">→</span>
+      </a>
+      <a class="tile help-card reveal" style="--d:1" href="/faq">
+        {{ icon("chat") }}
+        <span><b>Түгээмэл асуулт</b><small>eSIM, төлбөр, лицензийн тухай</small></span>
+        <span class="go" aria-hidden="true">→</span>
+      </a>
+      <a class="tile help-card reveal" style="--d:2" href="/check">
+        {{ icon("search") }}
+        <span><b>Захиалга шалгах</b><small>QR код, түлхүүрээ дахин харах</small></span>
+        <span class="go" aria-hidden="true">→</span>
+      </a>
     </div>
   </section>
 </div>

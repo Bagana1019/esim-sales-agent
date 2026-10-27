@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, svg %}
+{% block title %}Сим суулгах заавар — {{ shop }}{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div class="wrap">
+    <nav class="crumbs" aria-label="Байршил"><a href="/">Нүүр</a><span aria-hidden="true">/</span><span>Сим суулгах заавар</span></nav>
+    <h1>{{ icon("guide", "sm", lazy=false) }}Сим суулгах заавар</h1>
+    <p>eSIM-ээ 1 минутад суулгаж, очсон газраа шууд холбогдоорой</p>
+  </div>
+</section>
+
+<div class="wrap page guide">
+  <section class="dsection">
+    <h2 class="sm">Суулгахаасаа өмнө</h2>
+    <ul class="facts cols">
+      <li>{{ svg("check") }}<span>Утас eSIM дэмждэг эсэхийг шалга: <b>*#06#</b> залгахад EID гарч ирвэл дэмждэг.</span></li>
+      <li>{{ svg("check") }}<span>Wi-Fi эсвэл үндсэн датадаа холбогдсон байна — суулгахад интернэт хэрэгтэй.</span></li>
+      <li>{{ svg("check") }}<span>QR кодыг <b>өөр дэлгэц</b> (компьютер, өөр утас) дээр нээ эсвэл хэвлэ — суулгаж буй утсаараа өөрийнхөө дэлгэцийг уншуулах боломжгүй.</span></li>
+      <li>{{ svg("check") }}<span>Өөр дэлгэц байхгүй бол QR-ын оронд и-мэйл дэх <b>SM-DP+ хаяг</b>, <b>идэвхжүүлэх кодыг</b> гараар оруулна.</span></li>
+    </ul>
+  </section>
+
+  <div class="tabs">
+    <input type="radio" name="os" id="tab-ios" checked>
+    <input type="radio" name="os" id="tab-samsung">
+    <input type="radio" name="os" id="tab-android">
+    <div class="seg tabbar" role="tablist">
+      <label for="tab-ios">iPhone</label>
+      <label for="tab-samsung">Samsung</label>
+      <label for="tab-android">Pixel, бусад Android</label>
+    </div>
+
+    <section class="dsection tabpanel tp-ios">
+      <h2 class="sm">iPhone</h2>
+      <ol class="steps-list">
+        <li><b>Settings → Cellular</b> (эсвэл Mobile Data) → <b>Add eSIM</b>-ийг дарна.</li>
+        <li><b>Use QR Code</b>-ийг сонгоод QR кодоо уншуулна. Гараар оруулах бол <b>Enter Details Manually</b> → SM-DP+ хаяг, идэвхжүүлэх код.</li>
+        <li>Шинэ eSIM-д нэр өгнө, жишээ нь “Аялал”.</li>
+        <li>Дуудлагад үндсэн дугаараа үлдээж, <b>Cellular Data</b>-г шинэ eSIM болгоно.</li>
+        <li>Очсон газраа: Settings → Cellular → шинэ eSIM → <b>Data Roaming</b>-ийг асаана.</li>
+      </ol>
+    </section>
+    <section class="dsection tabpanel tp-samsung">
+      <h2 class="sm">Samsung Galaxy</h2>
+      <ol class="steps-list">
+        <li><b>Settings → Connections → SIM manager → Add eSIM</b>-ийг дарна.</li>
+        <li><b>Scan QR code from service provider</b>-ийг сонгоод QR кодоо уншуулна. Гараар оруулах бол <b>Enter activation code</b>.</li>
+        <li><b>Confirm</b> дарж eSIM-ийг нэмнэ.</li>
+        <li>SIM manager → <b>Mobile data</b>-г шинэ eSIM болгоно.</li>
+        <li>Очсон газраа: Settings → Connections → Mobile networks → <b>Data roaming</b>-ийг асаана.</li>
+      </ol>
+    </section>
+    <section class="dsection tabpanel tp-android">
+      <h2 class="sm">Google Pixel, бусад Android</h2>
+      <ol class="steps-list">
+        <li><b>Settings → Network &amp; internet → SIMs</b> → <b>Add SIM</b> (эсвэл “+”)-ийг дарна.</li>
+        <li><b>Download a SIM instead?</b> → Next → QR кодоо уншуулна.</li>
+        <li><b>Activate</b> дарж eSIM-ийг идэвхжүүлнэ.</li>
+        <li><b>Mobile data</b>-г шинэ eSIM болгоно.</li>
+        <li>Очсон газраа тухайн eSIM-ийн <b>Roaming</b>-ийг асаана.</li>
+      </ol>
+    </section>
+    <p class="help">Цэсний нэр утасны загвар, хувилбараас хамаарч бага зэрэг өөр байж болно.</p>
+  </div>
+
+  <div class="guide-cols">
+    <section class="dsection">
+      <h2 class="sm">{{ icon("signal", "xs") }}Интернэт ажиллахгүй бол</h2>
+      <ul class="facts">
+        <li>{{ svg("check") }}<span>Тухайн eSIM дээр Data Roaming асаалттай эсэхийг шалга.</span></li>
+        <li>{{ svg("check") }}<span>Гар утасны датаг (Cellular/Mobile data) eSIM-ээр сонгосон эсэхийг шалга.</span></li>
+        <li>{{ svg("check") }}<span>Нислэгийн горимыг асааж унтраах, эсвэл утсаа унтрааж асаа.</span></li>
+      </ul>
+    </section>
+    <section class="dsection">
+      <h2 class="sm">{{ icon("lock", "xs") }}Анхаарах</h2>
+      <ul class="facts">
+        <li>{{ svg("check") }}<span>QR кодыг ихэвчлэн нэг л удаа суулгах боломжтой тул eSIM-ээ утаснаасаа бүү устгаарай.</span></li>
+        <li>{{ svg("check") }}<span>Үндсэн SIM дээрх роуминг датаг унтрааж нэмэлт төлбөрөөс сэргийлээрэй.</span></li>
+        <li>{{ svg("check") }}<span>QR кодоо алдвал <a href="/check">Захиалга шалгах</a> хуудаснаас дахин харна.</span></li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="all-cta">
+    <div><b>Windows, Office лиценз идэвхжүүлэх үү?</b><span>Идэвхжүүлэх заавар бүтээгдэхүүн бүрийн хуудсанд болон и-мэйлд тань бий.</span></div>
+    <a class="btn pill" href="/license">Лицензүүд</a>
+    <a class="btn pill secondary" href="/faq">Түгээмэл асуулт</a>
+  </div>
+</div>
+{% endblock %}

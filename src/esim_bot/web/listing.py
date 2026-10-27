@@ -1,10 +1,10 @@
-"""eSIM багцын жагсаалтын шүүлтүүр, эрэмбэ (/esim хуудас)."""
+"""eSIM багц (/esim), лицензийн (/license) жагсаалтын шүүлтүүр, эрэмбэ."""
 
 from dataclasses import dataclass, replace
 from typing import Any
 from urllib.parse import urlencode
 
-from ..catalog import Catalog, Package
+from ..catalog import LICENSE_CATEGORIES, Catalog, License, Package
 
 GB_OPTIONS = (3, 5, 10, 20, 30)  # "3GB+" г.м.
 DAY_OPTIONS = (7, 14, 30)  # "7+ хоног" г.м.
@@ -87,3 +87,49 @@ def apply(catalog: Catalog, filters: Filters, names: dict[str, str]) -> list[Pac
         needle = filters.q.casefold()
         packages = [p for p in packages if needle in search_text(catalog, p, names)]
     return sorted(packages, key=SORTS[filters.sort][1])
+
+
+LICENSE_SORTS = {
+    "price": ("Үнэ: хямдаас", lambda lic: (lic.price_mnt, lic.name)),
+    "price_desc": ("Үнэ: үнэтэйгээс", lambda lic: (-lic.price_mnt, lic.name)),
+    "name": ("Нэрээр", lambda lic: lic.name),
+}
+
+
+@dataclass(frozen=True)
+class LicenseFilters:
+    category: str = ""  # LICENSE_CATEGORIES-ийн түлхүүр; хоосон бол бүгд
+    q: str = ""
+    sort: str = "price"
+    view: str = "cards"
+
+    @classmethod
+    def parse(cls, params: Any) -> "LicenseFilters":
+        category, sort = params.get("category", ""), params.get("sort", "price")
+        return cls(
+            category=category if category in LICENSE_CATEGORIES else "",
+            q=(params.get("q", "") or "").strip()[:60],
+            sort=sort if sort in LICENSE_SORTS else "price",
+            view="table" if params.get("view") == "table" else "cards",
+        )
+
+    @property
+    def active(self) -> bool:
+        return self != LicenseFilters(sort=self.sort, view=self.view)
+
+    def url(self, **changes: Any) -> str:
+        values = vars(replace(self, **changes))
+        defaults = vars(LicenseFilters())
+        query = urlencode({k: v for k, v in values.items() if v and v != defaults[k]})
+        return "/license" + (f"?{query}" if query else "")
+
+
+def apply_licenses(catalog: Catalog, filters: LicenseFilters) -> list[License]:
+    licenses = [lic for lic in catalog.licenses if not filters.category or lic.category == filters.category]
+    if filters.q:
+        needle = filters.q.casefold()
+        licenses = [
+            lic for lic in licenses
+            if needle in " ".join([lic.sku, lic.name, lic.description, *lic.features]).casefold()
+        ]
+    return sorted(licenses, key=LICENSE_SORTS[filters.sort][1])

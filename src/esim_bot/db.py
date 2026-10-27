@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, select
+from sqlalchemy import JSON, DateTime, ForeignKey, String, inspect, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -31,6 +31,7 @@ class Order(Base):
     channel: Mapped[str] = mapped_column(String(16))
     # Суваг доторх хүлээн авагч: Telegram-д chat id, вэбэд харилцагчийн и-мэйл
     chat_id: Mapped[str] = mapped_column(String(255), index=True)
+    phone: Mapped[str | None] = mapped_column(String(32))  # вэб захиалгын холбоо барих утас
     # Нэг захиалгад нэг эсвэл хэд хэдэн багц (жишээ нь 7 хоног + 3 хоног) — нэг QR-аар төлнө
     package_skus: Mapped[list[Any]]
     amount_mnt: Mapped[int]
@@ -88,6 +89,19 @@ class Conversation(Base):
     updated_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
+# create_all хуучин хүснэгтэд шинэ багана нэмдэггүй — дараа нэмэгдсэн, хоосон байж болох баганыг энд бичнэ
+_ADDED_COLUMNS = {"orders": {"phone": "VARCHAR(32)"}}
+
+
+def _add_missing_columns(conn: Any) -> None:
+    """Өгөгдлийг хэвээр үлдээж, хуучин хүснэгтэд дутуу баганыг нэмнэ."""
+    for table, columns in _ADDED_COLUMNS.items():
+        existing = {c["name"] for c in inspect(conn).get_columns(table)}
+        for name, sql_type in columns.items():
+            if name not in existing:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}"))
+
+
 class Database:
     def __init__(self, url: str):
         self.engine = create_async_engine(url)
@@ -96,6 +110,7 @@ class Database:
     async def create_all(self) -> None:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(_add_missing_columns)
         # create_all хуучин хүснэгтийг өөрчилдөггүй — бүтэц өөрчлөгдсөн бол ойлгомжтой мессеж өгнө
         try:
             async with self.session() as s:

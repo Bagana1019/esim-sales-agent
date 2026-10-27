@@ -8,13 +8,12 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from ..catalog import Package, format_mnt
+from ..catalog import LICENSE_CATEGORIES, Package, format_mnt
 from ..db import OrderStatus
-from ..delivery import product_label
 from ..payments.fake import FakeQPay
 from ..payments.qpay import QPayError
 from . import listing
-from .store import WebStore, is_valid_email
+from .store import WebStore, is_valid_email, normalize_phone
 
 STATIC_DIR = Path(__file__).parent / "static"
 # ISO кодын монгол нэр (Unicode CLDR-ээс үүсгэж, урт нэрсийг товчилсон)
@@ -43,7 +42,17 @@ def country_name(code: str) -> str:
     return COUNTRY_NAMES.get(code, code)
 
 
-templates.env.globals.update(asset=asset, flag_url=flag_url, format_mnt=format_mnt, country_name=country_name)
+LICENSE_ICONS = {"windows": "laptop", "server": "server", "office": "office"}  # static/icons-ийн 3D дүрс
+
+
+def license_category(key: str) -> dict[str, str]:
+    """Лицензийн ангиллын нэр, 3D дүрс тэмдэг (template-д)."""
+    return {"label": LICENSE_CATEGORIES.get(key, (key, ""))[0], "icon": LICENSE_ICONS.get(key, "key")}
+
+
+templates.env.globals.update(
+    asset=asset, flag_url=flag_url, format_mnt=format_mnt, country_name=country_name, license_category=license_category
+)
 templates.env.filters["country_name"] = country_name
 
 
@@ -63,8 +72,19 @@ async def index(request: Request) -> HTMLResponse:
     tiles = [(c, packages) for c in catalog.countries if (packages := catalog.packages_covering(c.code))]
     deal = min(catalog.packages, key=lambda p: p.price_mnt, default=None)
     covered = len({code for p in catalog.packages for code in p.countries})
+    license_groups = [
+        (key, label, group)
+        for key, (label, _) in LICENSE_CATEGORIES.items()
+        if (group := [lic for lic in catalog.licenses if lic.category == key])
+    ]
     return _render(
-        request, "index.html", tiles=tiles, licenses=catalog.licenses, deal=deal, total=len(catalog.packages), covered=covered
+        request,
+        "index.html",
+        tiles=tiles,
+        license_groups=license_groups,
+        deal=deal,
+        total=len(catalog.packages),
+        covered=covered,
     )
 
 
@@ -108,40 +128,76 @@ async def esim_detail(request: Request, sku: str) -> HTMLResponse:
     return _render(request, "esim_detail.html", **_detail_context(request, sku))
 
 
-def _checkout_context(request: Request, sku: str) -> dict[str, Any]:
+@router.get("/license", response_class=HTMLResponse)
+async def license_list(request: Request) -> HTMLResponse:
     catalog = _store(request).catalog
-    product = catalog.product(sku)
+    filters = listing.LicenseFilters.parse(request.query_params)
+    return _render(
+        request,
+        "license_list.html",
+        filters=filters,
+        licenses=listing.apply_licenses(catalog, filters),
+        categories=[(key, label) for key, (label, _) in LICENSE_CATEGORIES.items() if any(lic.category == key for lic in catalog.licenses)],
+        listing=listing,
+    )
+
+
+def _license_context(request: Request, sku: str) -> dict[str, Any]:
+    catalog = _store(request).catalog
+    product = catalog.license(sku)
     if product is None:
         raise HTTPException(status_code=404)
-    return {"product": product, "label": product_label(catalog, sku), "is_esim": isinstance(product, Package)}
+    related = [lic for lic in catalog.licenses if lic.category == product.category and lic.sku != sku]
+    return {"license": product, "related": related[:4], "max_quantity": MAX_QUANTITY}
 
 
-@router.get("/checkout", response_class=HTMLResponse)
-async def checkout_page(request: Request, sku: str) -> Any:
-    context = _checkout_context(request, sku)
-    if context["is_esim"]:  # eSIM-ийг танилцуулга хуудаснаас нь захиална
-        return RedirectResponse(f"/esim/{sku}", status_code=303)
-    return _render(request, "checkout.html", **context)
+@router.get("/license/{sku}", response_class=HTMLResponse)
+async def license_detail(request: Request, sku: str) -> HTMLResponse:
+    return _render(request, "license_detail.html", **_license_context(request, sku))
+
+
+@router.get("/faq", response_class=HTMLResponse)
+async def faq_page(request: Request) -> HTMLResponse:
+    return _render(request, "faq.html")
+
+
+@router.get("/install", response_class=HTMLResponse)
+async def install_page(request: Request) -> HTMLResponse:
+    return _render(request, "install.html")
+
+
+@router.get("/checkout")
+async def checkout_page(request: Request, sku: str) -> RedirectResponse:
+    """Хуучин холбоос: бүтээгдэхүүнийг танилцуулга хуудаснаас нь захиална."""
+    product = _store(request).catalog.product(sku)
+    if product is None:
+        raise HTTPException(status_code=404)
+    return RedirectResponse(f"/esim/{sku}" if isinstance(product, Package) else f"/license/{sku}", status_code=303)
 
 
 @router.post("/checkout")
 async def checkout_submit(
-    request: Request, sku: str = Form(...), email: str = Form(...), quantity: int = Form(1)
+    request: Request, sku: str = Form(...), email: str = Form(...), phone: str = Form(""), quantity: int = Form(1)
 ) -> Any:
-    context = _checkout_context(request, sku)
-    quantity = min(max(quantity, 1), MAX_QUANTITY) if context["is_esim"] else 1
+    product = _store(request).catalog.product(sku)
+    if product is None:
+        raise HTTPException(status_code=404)
+    quantity = min(max(quantity, 1), MAX_QUANTITY)
     email = email.strip()
 
     def form_error(status_code: int, error: str) -> HTMLResponse:
-        if context["is_esim"]:
-            detail = _detail_context(request, sku)
-            return _render(request, "esim_detail.html", status_code, email=email, quantity=quantity, error=error, **detail)
-        return _render(request, "checkout.html", status_code, email=email, error=error, **context)
+        if isinstance(product, Package):
+            template, context = "esim_detail.html", _detail_context(request, sku)
+        else:
+            template, context = "license_detail.html", _license_context(request, sku)
+        return _render(request, template, status_code, email=email, phone=phone, quantity=quantity, error=error, **context)
 
     if not is_valid_email(email):
         return form_error(400, "И-мэйл хаяг буруу байна.")
+    if not (normalized_phone := normalize_phone(phone)):
+        return form_error(400, "Утасны дугаар буруу байна. Жишээ нь 99112233.")
     try:
-        order = await _store(request).checkout(sku, email, quantity)
+        order = await _store(request).checkout(sku, email, normalized_phone, quantity)
     except QPayError:
         return form_error(503, "Төлбөрийн систем түр ажиллахгүй байна. Хэсэг хугацааны дараа дахин оролдоно уу.")
     return RedirectResponse(_store(request).order_path(order), status_code=303)

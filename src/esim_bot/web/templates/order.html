@@ -9,6 +9,7 @@
     {% for label, product in lines %}
     <div class="row"><span>{{ label }}</span><span>{{ format_mnt(product.price_mnt) if product else "" }}</span></div>
     {% endfor %}
+    <div class="row"><span>Холбоо барих</span><span>{{ order.chat_id }}{% if order.phone %} · {{ order.phone }}{% endif %}</span></div>
     <div class="row total"><b>Нийт</b><b>{{ format_mnt(order.amount_mnt) }}</b></div>
   </div>
 
@@ -44,6 +45,7 @@
         <img class="qr" src="{{ item.qr }}" alt="eSIM QR код">
         <p><b>Суулгах:</b> iPhone — Settings → Cellular → Add eSIM → Use QR Code.
         Android — Settings → Connections → SIM manager → Add eSIM → Scan QR code.</p>
+        <p><a href="/install">Дэлгэрэнгүй суулгах заавар →</a></p>
         <p class="muted">QR уншуулж чадахгүй бол гараар оруулна:</p>
         <div class="row"><span>SM-DP+ хаяг</span><span class="mono">{{ item.smdp }}</span></div>
         <div class="row"><span>Идэвхжүүлэх код</span><span class="mono">{{ item.code }}</span></div>

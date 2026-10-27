@@ -73,4 +73,14 @@ async def seed_demo_stock(db: Database, catalog: Catalog) -> None:
             s.add_all(demo)
         print(f"(Туршилтын {added + len(demo)} eSIM санд нэмэгдлээ)")
     if not await stock_by_sku(db, LicenseKey):
-        print(f"(Туршилтын {await import_licenses(db, 'data/licenses.example.csv')} лиценз санд нэмэгдлээ)")
+        added = await import_licenses(db, "data/licenses.example.csv")
+        stocked = await stock_by_sku(db, LicenseKey)
+        demo = [
+            LicenseKey(package_sku=lic.sku, product_key=f"TEST-{lic.sku}-DEMO{n}")
+            for lic in catalog.licenses
+            if lic.sku not in stocked
+            for n in (1, 2)
+        ]
+        async with db.session() as s, s.begin():
+            s.add_all(demo)
+        print(f"(Туршилтын {added + len(demo)} лиценз санд нэмэгдлээ)")

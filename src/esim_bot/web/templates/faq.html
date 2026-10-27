@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Түгээмэл асуулт — {{ shop }}{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div class="wrap">
+    <nav class="crumbs" aria-label="Байршил"><a href="/">Нүүр</a><span aria-hidden="true">/</span><span>Түгээмэл асуулт</span></nav>
+    <h1>{{ icon("chat", "sm", lazy=false) }}Түгээмэл асуулт</h1>
+    <p>eSIM, захиалга, төлбөр, лицензийн талаар хамгийн их асуудаг асуултууд</p>
+  </div>
+</section>
+
+<div class="wrap page">
+  <nav class="opts topics" aria-label="Сэдэв">
+    <a class="opt" href="#esim-basics"><span>eSIM ба утас</span></a>
+    <a class="opt" href="#orders"><span>Захиалга, төлбөр</span></a>
+    <a class="opt" href="#using"><span>Суулгах, ашиглах</span></a>
+    <a class="opt" href="#licenses"><span>Windows, Office</span></a>
+  </nav>
+
+  <section class="faq-group" id="esim-basics">
+    <h2 class="sm">eSIM ба утас</h2>
+    <div class="faq">
+      <details><summary>eSIM гэж юу вэ?</summary>
+        <p>Утсанд суурилагдсан цахим SIM. Биет карт оруулах шаардлагагүй — QR кодыг уншуулахад операторын профайл утсанд суугдана. Үндсэн SIM-ээ хэвээр үлдээгээд eSIM-ийг аяллын дата-нд ашиглана.</p></details>
+      <details><summary>Миний утас eSIM дэмжих үү?</summary>
+        <p>iPhone XS/XR ба түүнээс хойшх, Samsung Galaxy S20 ба түүнээс хойшх, Google Pixel 3 ба түүнээс хойшх ихэнх загвар дэмждэг.
+        Шалгах арга: утсандаа <b>*#06#</b> залгахад EID дугаар гарч ирвэл дэмждэг. Утас operator-lock-гүй байх ёстой.</p></details>
+      <details><summary>Үндсэн дугаар маань ажилласаар байх уу?</summary>
+        <p>Ихэнх утас үндсэн SIM болон eSIM-ийг зэрэг ажиллуулдаг тул аяллын үеэр датаг eSIM-ээр, дуудлага, мессежийг үндсэн дугаараараа хүлээн авах боломжтой. Үндсэн SIM дээрээ роуминг датаг унтрааж нэмэлт төлбөрөөс сэргийлээрэй.</p></details>
+    </div>
+  </section>
+
+  <section class="faq-group" id="orders">
+    <h2 class="sm">Захиалга, төлбөр</h2>
+    <div class="faq">
+      <details><summary>Хэрхэн төлөх вэ?</summary>
+        <p>QPay-ээр: банкныхаа аппаар QR кодыг уншуулах эсвэл утаснаасаа банкны аппаа сонгоод шууд төлнө.</p></details>
+      <details><summary>Захиалга хэрхэн ирэх вэ?</summary>
+        <p>Төлбөр ормогц eSIM-ийн QR код (эсвэл лицензийн түлхүүр) суулгах зааврын хамт захиалгын хуудсанд гарч, таны и-мэйл рүү очно.</p></details>
+      <details><summary>Нэг дор хэд хэдэн eSIM авч болох уу?</summary>
+        <p>Болно. Багцын хуудсанд тоо ширхгээ сонгоход нэг захиалгад 5 хүртэл eSIM авна — тус бүр тусдаа QR кодтой очно.</p></details>
+      <details><summary>Утасны дугаараа яагаад өгөх вэ?</summary>
+        <p>Захиалгад асуудал гарвал, жишээ нь төлбөр орсон ч хүргэлт саатвал, тантай шуурхай холбогдохын тулд.</p></details>
+      <details><summary>QR кодоо эсвэл түлхүүрээ гээчихвэл яах вэ?</summary>
+        <p><a href="/check">Захиалга шалгах</a> хуудсанд захиалгын дугаар, и-мэйлээ оруулаад QR код, түлхүүр, суулгах зааврыг дахин харна.</p></details>
+    </div>
+  </section>
+
+  <section class="faq-group" id="using">
+    <h2 class="sm">Суулгах, ашиглах</h2>
+    <div class="faq">
+      <details><summary>eSIM-ээ хэзээ суулгах вэ?</summary>
+        <p>Аялахаасаа өмнө Wi-Fi-тэй газар суулгаад, очсон газраа тухайн eSIM дээр Data Roaming-ийг асаана. Алхам алхмаар нь <a href="/install">Сим суулгах заавар</a>-аас харна уу.</p></details>
+      <details><summary>Очсон газраа интернэт ажиллахгүй байвал?</summary>
+        <p>eSIM дээр Data Roaming асаалттай, гар утасны дата (Cellular/Mobile data)-г eSIM-ээр сонгосон эсэхийг шалгаад утсаа унтрааж асаана уу.</p></details>
+      <details><summary>Олон улсын багц гэж юу вэ?</summary>
+        <p>Нэг eSIM жагсаасан бүх улсад ажиллана — улс солиход шинэ SIM авах шаардлагагүй. Хамрах улсууд багц бүрийн хуудсанд бий.</p></details>
+    </div>
+  </section>
+
+  <section class="faq-group" id="licenses">
+    <h2 class="sm">Windows, Office лиценз</h2>
+    <div class="faq">
+      <details><summary>Лицензийн түлхүүр хэрхэн ирэх вэ?</summary>
+        <p>Төлбөр ормогц 25 тэмдэгт түлхүүр идэвхжүүлэх зааврын хамт и-мэйлээр очно.</p></details>
+      <details><summary>Office 2024 ба Microsoft 365 юугаараа ялгаатай вэ?</summary>
+        <p>Office Home 2024, Home &amp; Business 2024-ийг нэг удаа худалдаж аваад 1 PC эсвэл Mac дээр хугацаагүй ашиглана. Microsoft 365 нь 12 сарын захиалга — үргэлж хамгийн сүүлийн хувилбар, 1TB OneDrive-тай.</p></details>
+      <details><summary>Windows Home-оос Pro руу шилжиж болох уу?</summary>
+        <p>Болно. Pro түлхүүрийг Settings → System → Activation → "Change product key"-д оруулахад Windows-ийг дахин суулгалгүйгээр шинэчлэгдэнэ.</p></details>
+    </div>
+  </section>
+
+  <div class="all-cta">
+    <div><b>Хариултаа олсонгүй юу?</b><span>Захиалгынхаа төлөвийг шалгах эсвэл сим суулгах зааврыг үзнэ үү.</span></div>
+    <a class="btn pill" href="/install">Сим суулгах заавар</a>
+    <a class="btn pill secondary" href="/check">Захиалга шалгах</a>
+  </div>
+</div>
+{% endblock %}

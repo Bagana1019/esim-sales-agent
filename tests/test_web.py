@@ -1,3 +1,4 @@
+import html
 import re
 from email import message_from_bytes, policy
 from pathlib import Path
@@ -33,7 +34,7 @@ def emails(outbox: Path):
 
 
 def buy(client, sku, email="bat@example.com"):
-    resp = client.post("/checkout", data={"sku": sku, "email": email}, follow_redirects=False)
+    resp = client.post("/checkout", data={"sku": sku, "email": email, "phone": "9911 2233"}, follow_redirects=False)
     assert resp.status_code == 303
     return resp.headers["location"]
 
@@ -50,7 +51,45 @@ def test_home_links_countries_to_listing(client):
     cheapest = min(catalog.packages, key=lambda p: p.price_mnt)
     assert f'href="/esim/{cheapest.sku}"' in html  # hero-ийн хамгийн хямд багц
     assert f"Бүх {len(catalog.packages)} багц" in html
-    assert "Windows 11 Pro" in html and "/checkout?sku=WIN11-PRO" in html
+    assert '/license?category=office' in html and '/license?category=windows' in html
+    # толгойн цэс, тусламжийн хэсэг
+    assert all(f'href="{path}"' in html for path in ("/esim", "/license", "/install", "/faq", "/check"))
+
+
+def test_help_pages(client):
+    faq = client.get("/faq").text
+    assert "Түгээмэл асуулт" in faq and "*#06#" in faq and "Microsoft 365" in faq and 'aria-current="page"' in faq
+    install = client.get("/install").text
+    assert all(name in install for name in ("iPhone", "Samsung", "Pixel")) and "Data Roaming" in install
+
+
+def test_license_listing_and_detail(client):
+    catalog = catalog_of(client)
+    listing_page = client.get("/license").text
+    assert all(f'href="/license/{lic.sku}"' in listing_page for lic in catalog.licenses)
+    office = client.get("/license?category=office").text
+    assert 'href="/license/OFFICE24-HB"' in office and 'href="/license/WIN11-PRO"' not in office
+    assert 'href="/license/OFFICE24-HB"' in client.get("/license?q=outlook").text
+    assert "data-sortable" in client.get("/license?view=table").text
+
+    page = client.get("/license/OFFICE24-HB").text
+    lic = catalog.license("OFFICE24-HB")
+    assert html.escape(lic.name) in page and "Outlook" in page and "setup.office.com" in page and "Хураангуй" in page
+    assert client.get("/license/NOPE").status_code == 404
+    redirect = client.get("/checkout?sku=WIN11-PRO", follow_redirects=False)
+    assert redirect.status_code == 303 and redirect.headers["location"] == "/license/WIN11-PRO"
+
+
+def test_checkout_requires_valid_phone(client):
+    bad = client.post("/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "phone": "12345"})
+    assert bad.status_code == 400 and "Утасны дугаар буруу" in bad.text and 'value="12345"' in bad.text
+    bad_license = client.post("/checkout", data={"sku": "WIN11-PRO", "email": "bat@example.com", "phone": ""})
+    assert bad_license.status_code == 400 and "Windows 11 Pro" in bad_license.text  # лицензийн хуудсаараа
+
+    resp = client.post(
+        "/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "phone": "+976 9911-2233"}, follow_redirects=False
+    )
+    assert "bat@example.com · 99112233" in client.get(resp.headers["location"]).text
 
 
 def test_esim_listing_filters(client):
@@ -90,14 +129,13 @@ def test_checkout_validates_input(client):
     redirect = client.get("/checkout?sku=TH-8D-15GB", follow_redirects=False)
     assert redirect.status_code == 303 and redirect.headers["location"] == "/esim/TH-8D-15GB"
     page = client.get("/esim/TH-8D-15GB").text
-    assert "Тайланд · 8 хоног, Нийт 15GB" in page and "30,000₮" in page
-    bad = client.post("/checkout", data={"sku": "TH-8D-15GB", "email": "not-an-email", "quantity": "2"})
+    assert "Тайланд · 8 хоног, Нийт 15GB" in page and "30,000₮" in page and 'name="phone"' in page
+    bad = client.post("/checkout", data={"sku": "TH-8D-15GB", "email": "not-an-email", "phone": "99112233", "quantity": "2"})
     assert bad.status_code == 400 and "И-мэйл хаяг буруу" in bad.text and "60,000₮" in bad.text
-    assert "QPay-ээр төлөх" in client.get("/checkout?sku=WIN11-PRO").text  # лиценз хуучин хуудсаараа
 
 
 def test_checkout_quantity_makes_one_order_with_several_esims(client, outbox):
-    resp = client.post("/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "quantity": "9"}, follow_redirects=False)
+    resp = client.post("/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "phone": "99112233", "quantity": "9"}, follow_redirects=False)
     page = client.get(resp.headers["location"]).text
     price = catalog_of(client).package("JP-7D-5GB").price_mnt
     assert page.count("Япон - 7 хоног / Нийт 5GB") == 5 and f"{price * 5:,}₮" in page  # дээд тал нь 5
@@ -122,6 +160,7 @@ def test_esim_purchase_end_to_end(client, outbox):
     assert mail["To"] == "bat@example.com"
     assert "TEST-ACTIVATION-CODE-0013" in mail.get_body(("plain",)).get_content()
     assert f"https://shop.example/order/{order_id}?t={token}" in mail.get_body(("plain",)).get_content()
+    assert "https://shop.example/install" in mail.get_body(("plain",)).get_content()
     assert [a.get_filename() for a in mail.iter_attachments()] == ["esim-1.png"]
 
     # Дахин шалгахад давхар и-мэйл илгээхгүй

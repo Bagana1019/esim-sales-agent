@@ -34,8 +34,19 @@
 <header class="site-header on-dark">
   <div class="wrap">
     {{ logo() }}
-    <nav class="nav" aria-label="Цэс"><a href="/esim">eSIM</a><a href="/#windows">Windows</a><a class="wide-only" href="/#faq">Асуулт</a><a class="narrow-only" href="/check">Шалгах</a></nav>
+    {% set path = request.url.path %}
+    {% macro navlinks() -%}
+    <a href="/esim"{% if path.startswith("/esim") %} aria-current="page"{% endif %}>eSIM</a>
+    <a href="/license"{% if path.startswith("/license") %} aria-current="page"{% endif %}>Лиценз</a>
+    <a href="/install"{% if path == "/install" %} aria-current="page"{% endif %}>Сим суулгах заавар</a>
+    <a href="/faq"{% if path == "/faq" %} aria-current="page"{% endif %}>Түгээмэл асуулт</a>
+    {%- endmacro %}
+    <nav class="nav" aria-label="Цэс">{{ navlinks() }}</nav>
     <a class="btn pill ghost header-cta" href="/check">Захиалга шалгах</a>
+    <details class="mnav">
+      <summary aria-label="Цэс"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></summary>
+      <nav class="mnav-panel" aria-label="Цэс">{{ navlinks() }}<a class="btn" href="/check">Захиалга шалгах</a></nav>
+    </details>
   </div>
 </header>
 <main>
@@ -50,11 +61,11 @@
       </div>
       <div>
         <p class="footer-title">Дэлгүүр</p>
-        <ul><li><a href="/esim">eSIM багцууд</a></li><li><a href="/esim?view=table">Багц харьцуулах</a></li><li><a href="/#windows">Windows лиценз</a></li></ul>
+        <ul><li><a href="/esim">eSIM багцууд</a></li><li><a href="/esim?view=table">Багц харьцуулах</a></li><li><a href="/license">Windows, Office лиценз</a></li></ul>
       </div>
       <div>
         <p class="footer-title">Тусламж</p>
-        <ul><li><a href="/check">Захиалга шалгах</a></li><li><a href="/#howto">Хэрхэн авах вэ</a></li><li><a href="/#faq">Түгээмэл асуулт</a></li></ul>
+        <ul><li><a href="/check">Захиалга шалгах</a></li><li><a href="/install">Сим суулгах заавар</a></li><li><a href="/faq">Түгээмэл асуулт</a></li></ul>
       </div>
       <div>
         <p class="footer-title">Төлбөр</p>
