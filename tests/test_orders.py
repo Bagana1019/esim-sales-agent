@@ -1,5 +1,5 @@
 from esim_bot.db import OrderStatus
-from esim_bot.inventory import stock_by_sku
+from esim_bot.inventory import seed_demo_stock, stock_by_sku
 from esim_bot.orders import PaymentOutcome
 
 
@@ -67,6 +67,23 @@ async def test_out_of_stock_recovers_after_restock(orders, qpay, db):
     result = await orders.process_payment(order.id, deliver)
     assert result.outcome == PaymentOutcome.DELIVERED
     assert deliver.calls == [(order.id, ["999"])]
+
+
+
+async def test_demo_stock_fills_products_missing_from_an_existing_pool(orders, qpay, db, catalog):
+    # Каталогт шинэ бүтээгдэхүүн нэмэгдсэн хуучин сан: сан хоосон биш ч зарим бүтээгдэхүүнд нөөц байхгүй
+    await seed_demo_stock(db, catalog)
+    stock = await stock_by_sku(db)
+    assert {p.sku for p in catalog.packages} | {lic.sku for lic in catalog.licenses} <= stock.keys()
+    assert stock["JP-5D-3GB"] == 2 and stock["WIN11-PRO"] == 1  # байсан нөөцөд хүрэхгүй
+
+    order, _ = await orders.create_order("test", "u1", ["KR-7D-10GB", "KR-7D-10GB"])
+    qpay.mark_all_paid()
+    assert (await orders.process_payment(order.id, DeliverySpy())).outcome == PaymentOutcome.DELIVERED
+    assert "KR-7D-10GB" not in await stock_by_sku(db)
+
+    await seed_demo_stock(db, catalog)  # туршилтаар зарагдаж дууссан бол ICCID давхардуулахгүйгээр дахин нэмнэ
+    assert (await stock_by_sku(db))["KR-7D-10GB"] == 2
 
 
 async def test_order_lookup_is_scoped_to_chat(orders):

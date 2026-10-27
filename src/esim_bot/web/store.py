@@ -28,6 +28,8 @@ def normalize_phone(phone: str) -> str | None:
     compact = re.sub(r"[\s\-().]", "", phone)
     if re.fullmatch(r"(\+?976)?\d{8}", compact):
         return compact[-8:]  # Монголын дугаарыг 8 оронгоор хадгална
+    if compact.lstrip("+").startswith("976"):
+        return None  # +976-ийн дараа 8 оронтой байх ёстой
     if re.fullmatch(r"\+\d{8,15}", compact):
         return compact
     return None
