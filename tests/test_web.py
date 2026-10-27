@@ -40,8 +40,9 @@ def buy(client, sku, email="bat@example.com"):
 
 def test_home_lists_esims_and_licenses(client):
     html = client.get("/").text
-    assert "eSIM <span>Mongolia</span>" in html
-    assert "🇨🇳 Хятад" in html and "VPN-гүйгээр" in html  # улсын тэмдэглэл
+    assert "Nomad <span>Data</span>" in html and "Дэлхийн дата" in html
+    assert 'src="/static/flags/cn.svg"' in html and "Хятад" in html and "VPN-гүйгээр" in html  # туг, улсын тэмдэглэл
+    assert "≈3,750₮" in html  # харьцуулах хүснэгт: Тайланд 30,000₮ / 8 хоног
     assert "/checkout?sku=JP-7D-5GB" in html and "38,000₮" in html
     assert "Windows 11 Pro" in html and "/checkout?sku=WIN11-PRO" in html
 
@@ -80,6 +81,19 @@ def test_esim_purchase_end_to_end(client, outbox):
     assert len(emails(outbox)) == 1
 
 
+def test_order_lookup_by_number_and_email(client):
+    order_url = buy(client, "JP-7D-5GB")
+    order_id = re.match(r"/order/(\w+)\?", order_url).group(1)
+    assert "Захиалгын дугаар" in client.get("/check").text
+
+    found = client.post("/check", data={"number": f" #{order_id[:8].upper()}", "email": "bat@example.com"}, follow_redirects=False)
+    assert found.status_code == 303 and found.headers["location"] == order_url
+
+    wrong_email = client.post("/check", data={"number": order_id[:8], "email": "other@example.com"})
+    assert wrong_email.status_code == 404 and "Захиалга олдсонгүй" in wrong_email.text
+    assert client.post("/check", data={"number": order_id[:4], "email": "bat@example.com"}).status_code == 404
+
+
 def test_license_purchase_shows_key(client, outbox):
     order_url = buy(client, "WIN11-PRO", "office@example.com")
     order_id, token = re.match(r"/order/(\w+)\?t=(\w+)", order_url).groups()
@@ -110,3 +124,11 @@ def test_dev_pay_disabled_without_fake_payments(client, monkeypatch):
     order_id, token = re.match(r"/order/(\w+)\?t=(\w+)", order_url).groups()
     monkeypatch.setattr(client.app.state.services, "payments", object())
     assert client.post(f"/dev/pay/{order_id}?t={token}").status_code == 404
+
+
+def test_static_assets_are_served(client):
+    html = client.get("/").text
+    css = re.search(r'href="(/static/site\.css\?v=\w+)"', html).group(1)
+    assert client.get(css).status_code == 200
+    assert client.get("/static/icons/globe.webp").headers["content-type"] == "image/webp"
+    assert client.get("/static/flags/jp.svg").status_code == 200

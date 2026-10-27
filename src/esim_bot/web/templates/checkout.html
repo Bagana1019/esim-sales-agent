@@ -1,19 +1,22 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon %}
 {% block title %}Захиалах — {{ shop }}{% endblock %}
 {% block content %}
-<div class="narrow">
+<div class="wrap page narrow">
+  <nav class="crumbs" aria-label="Байршил"><a href="/">Нүүр</a><span aria-hidden="true">/</span><span>Захиалах</span></nav>
   <h1>Захиалах</h1>
   <div class="card">
-    <div class="row"><span>{{ label }}</span><b>{{ format_mnt(product.price_mnt) }}</b></div>
+    <div class="row total"><span>{{ label }}</span><b>{{ format_mnt(product.price_mnt) }}</b></div>
   </div>
-  <form method="post" action="/checkout">
+  <form class="card" method="post" action="/checkout">
     <input type="hidden" name="sku" value="{{ product.sku }}">
     <label for="email">И-мэйл хаяг</label>
     <input id="email" name="email" type="email" required autocomplete="email" placeholder="name@example.com" value="{{ email or '' }}">
-    <p class="muted">{{ "eSIM-ийн QR код" if is_esim else "Лицензийн түлхүүр" }} энэ хаяг руу очно. Зөв бичсэн эсэхээ шалгаарай.</p>
+    <p class="help">{{ "eSIM-ийн QR код" if is_esim else "Лицензийн түлхүүр" }} энэ хаяг руу очно. Зөв бичсэн эсэхээ шалгаарай.</p>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
-    <button class="btn" type="submit">QPay-ээр төлөх</button>
+    <button class="btn shine" type="submit">QPay-ээр төлөх</button>
   </form>
-  <p><a href="/">← Буцах</a></p>
+  <div class="secure">{{ icon("lock", "sm", lazy=false) }}<div><b>QPay-ээр аюулгүй төлнө</b>Төлбөр ормогц {{ "eSIM-ийн QR код" if is_esim else "лицензийн түлхүүр" }} и-мэйлээр очно.</div></div>
+  <a class="back" href="/">← Буцах</a>
 </div>
 {% endblock %}

@@ -1,20 +1,22 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon %}
 {% block title %}Захиалга #{{ order.id[:8] }} — {{ shop }}{% endblock %}
 {% block content %}
-<div class="narrow">
+<div class="wrap page narrow">
+  <nav class="crumbs" aria-label="Байршил"><a href="/">Нүүр</a><span aria-hidden="true">/</span><span>Захиалга</span></nav>
   <h1>Захиалга #{{ order.id[:8] }}</h1>
   <div class="card">
     {% for label, product in lines %}
     <div class="row"><span>{{ label }}</span><span>{{ format_mnt(product.price_mnt) if product else "" }}</span></div>
     {% endfor %}
-    <div class="row"><b>Нийт</b><b>{{ format_mnt(order.amount_mnt) }}</b></div>
+    <div class="row total"><b>Нийт</b><b>{{ format_mnt(order.amount_mnt) }}</b></div>
   </div>
 
   {% if pending %}
-    <div class="status wait">Төлбөр хүлээгдэж байна</div>
+    <div class="status wait">{{ icon("hourglass", lazy=false) }}<span>Төлбөр хүлээгдэж байна</span></div>
     <div class="card">
       {% if bank_urls %}
-      <b>Утаснаасаа банкны аппаар төлөх</b>
+      <b class="card-title">Утаснаасаа банкны аппаар төлөх</b>
       <div class="banks">
         {% for b in bank_urls %}
         <a class="bank" href="{{ b.link }}">{% if b.logo %}<img src="{{ b.logo }}" alt="">{% endif %}{{ b.description or b.name }}</a>
@@ -22,7 +24,7 @@
       </div>
       <p class="muted">Эсвэл банкны аппаараа доорх QR кодыг уншуулна уу.</p>
       {% else %}
-      <b>Банкны аппаараа QR кодыг уншуулж төлнө үү</b>
+      <b class="card-title">Банкны аппаараа QR кодыг уншуулж төлнө үү</b>
       {% endif %}
       {% if payment_qr %}<img class="qr" src="{{ payment_qr }}" alt="QPay QR код">{% endif %}
       {% if short_url %}<a class="btn secondary" href="{{ short_url }}">QPay хуудсаар төлөх</a>{% endif %}
@@ -34,11 +36,11 @@
     </form>
     {% endif %}
   {% elif delivered %}
-    <div class="status ok">✅ Төлбөр баталгаажлаа. Захиалгыг {{ order.chat_id }} хаяг руу илгээлээ.</div>
+    <div class="status ok">{{ icon("check", lazy=false) }}<span>Төлбөр баталгаажлаа. Захиалгыг {{ order.chat_id }} хаяг руу илгээлээ.</span></div>
     {% for item in items %}
       {% if item.kind == "esim" %}
-      <div class="card" style="margin-bottom:12px">
-        <b>{{ item.label }}{% if items|length > 1 %} ({{ loop.index }}/{{ items|length }}){% endif %}</b>
+      <div class="card">
+        <b class="card-title">{{ item.label }}{% if items|length > 1 %} ({{ loop.index }}/{{ items|length }}){% endif %}</b>
         <img class="qr" src="{{ item.qr }}" alt="eSIM QR код">
         <p><b>Суулгах:</b> iPhone — Settings → Cellular → Add eSIM → Use QR Code.
         Android — Settings → Connections → SIM manager → Add eSIM → Scan QR code.</p>
@@ -50,8 +52,8 @@
         Очсон газраа энэ eSIM дээр Data Roaming-ийг асаана.</p>
       </div>
       {% else %}
-      <div class="card" style="margin-bottom:12px">
-        <b>{{ item.label }}</b>
+      <div class="card">
+        <b class="card-title">{{ item.label }}</b>
         <p class="muted">Бүтээгдэхүүний түлхүүр:</p>
         <div class="key mono">{{ item.key }}</div>
         <p><b>Идэвхжүүлэх заавар</b></p>
@@ -60,7 +62,7 @@
       {% endif %}
     {% endfor %}
   {% else %}
-    <div class="status wait">Төлбөр баталгаажлаа. Таны захиалгыг бэлтгэж байна, бэлэн болмогц энд гарч, и-мэйлээр очно.</div>
+    <div class="status wait">{{ icon("hourglass", lazy=false) }}<span>Төлбөр баталгаажлаа. Таны захиалгыг бэлтгэж байна, бэлэн болмогц энд гарч, и-мэйлээр очно.</span></div>
   {% endif %}
 </div>
 
