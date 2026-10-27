@@ -1,4 +1,5 @@
 import csv
+from collections.abc import Callable
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -52,35 +53,51 @@ async def stock_by_sku(db: Database, *models: type[EsimProfile | LicenseKey]) ->
     return stock
 
 
+def _fresh(make: Callable[[int], str], taken: set[str], count: int = 2) -> list[str]:
+    """make(1), make(2)...-оос taken-д ороогүй count утгыг сонгож, taken-д нэмнэ."""
+    values: list[str] = []
+    n = 1
+    while len(values) < count:
+        if (value := make(n)) not in taken:
+            values.append(value)
+            taken.add(value)
+        n += 1
+    return values
+
+
 async def seed_demo_stock(db: Database, catalog: Catalog) -> None:
-    """Хуурамч төлбөрийн горимд сан хоосон бол туршилтын eSIM, лиценз нэмнэ."""
+    """Хуурамч төлбөрийн горимд нөөцгүй багц, лиценз бүрд туршилтын 2 ширхэг нэмнэ.
+
+    Сан хоосон бол эхлээд жишээ CSV-г оруулна. Каталогт шинэ бүтээгдэхүүн нэмэгдсэн эсвэл туршилтаар
+    зарагдаж дууссан хуучин сантай ч локал дээр бүх бүтээгдэхүүнийг худалдаж үзэх боломжтой.
+    """
+    added = 0
     if not await stock_by_sku(db, EsimProfile):
-        added = await import_esims(db, "data/esims.example.csv")
-        # Жишээ CSV-д ороогүй багц бүрд 2 туршилтын eSIM — локал дээр бүх багцыг худалдаж үзэх боломжтой
-        stocked = await stock_by_sku(db, EsimProfile)
-        demo = [
+        added += await import_esims(db, "data/esims.example.csv")
+    if not await stock_by_sku(db, LicenseKey):
+        added += await import_licenses(db, "data/licenses.example.csv")
+
+    stocked = await stock_by_sku(db)
+    async with db.session() as s, s.begin():
+        iccids = set(await s.scalars(select(EsimProfile.iccid)))
+        keys = set(await s.scalars(select(LicenseKey.product_key)))
+        demo: list[EsimProfile | LicenseKey] = [
             EsimProfile(
                 package_sku=p.sku,
-                iccid=f"8900{i:05d}{n}",
+                iccid=iccid,
                 smdp_address="rsp.example-provider.com",
-                activation_code=f"TEST-{p.sku}-{n}",
+                activation_code=f"TEST-{iccid}",
             )
             for i, p in enumerate(catalog.packages)
             if p.sku not in stocked
-            for n in (1, 2)
+            for iccid in _fresh(lambda n, i=i: f"8900{i:05d}{n}", iccids)
         ]
-        async with db.session() as s, s.begin():
-            s.add_all(demo)
-        print(f"(Туршилтын {added + len(demo)} eSIM санд нэмэгдлээ)")
-    if not await stock_by_sku(db, LicenseKey):
-        added = await import_licenses(db, "data/licenses.example.csv")
-        stocked = await stock_by_sku(db, LicenseKey)
-        demo = [
-            LicenseKey(package_sku=lic.sku, product_key=f"TEST-{lic.sku}-DEMO{n}")
+        demo += [
+            LicenseKey(package_sku=lic.sku, product_key=key)
             for lic in catalog.licenses
             if lic.sku not in stocked
-            for n in (1, 2)
+            for key in _fresh(lambda n, lic=lic: f"TEST-{lic.sku}-DEMO{n}", keys)
         ]
-        async with db.session() as s, s.begin():
-            s.add_all(demo)
-        print(f"(Туршилтын {added + len(demo)} лиценз санд нэмэгдлээ)")
+        s.add_all(demo)
+    if added + len(demo):
+        print(f"(Туршилтын {added + len(demo)} eSIM, лиценз санд нэмэгдлээ)")

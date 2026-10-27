@@ -85,6 +85,8 @@ def test_checkout_requires_valid_phone(client):
     assert bad.status_code == 400 and "Утасны дугаар буруу" in bad.text and 'value="12345"' in bad.text
     bad_license = client.post("/checkout", data={"sku": "WIN11-PRO", "email": "bat@example.com", "phone": ""})
     assert bad_license.status_code == 400 and "Windows 11 Pro" in bad_license.text  # лицензийн хуудсаараа
+    too_long = client.post("/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "phone": "+976 3232078554"})
+    assert too_long.status_code == 400  # +976-ийн дараа 8 орон
 
     resp = client.post(
         "/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "phone": "+976 9911-2233"}, follow_redirects=False
