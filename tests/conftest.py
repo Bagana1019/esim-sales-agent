@@ -94,7 +94,7 @@ async def db(tmp_path):
 
 @pytest.fixture
 def catalog() -> Catalog:
-    return Catalog.load(ROOT / "data" / "catalog.yaml")
+    return Catalog.load(ROOT / "tests" / "catalog.yaml")
 
 
 @pytest.fixture

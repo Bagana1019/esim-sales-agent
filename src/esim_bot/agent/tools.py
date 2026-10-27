@@ -101,7 +101,9 @@ async def list_packages(ctx: ToolContext, country_code: str) -> Any:
     if not packages:
         raise ToolError(f"{country_code} улсад багц байхгүй. list_countries-оор боломжит улсуудыг харна уу.")
     return [
-        {"sku": p.sku, "days": p.days, "data": p.data, "price": format_mnt(p.price_mnt)} for p in packages
+        {"sku": p.sku, "days": p.days, "data": p.data, "price": format_mnt(p.price_mnt)}
+        | ({"region": p.region.name, "countries": list(p.region.countries)} if p.region else {})
+        for p in packages
     ]
 
 

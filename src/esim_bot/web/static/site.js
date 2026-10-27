@@ -42,28 +42,38 @@
     });
   }
 
-  // Улсын нэрээр (латин нэр, кодоор ч) хайж, карт, багц, хүснэгтийн мөрийг шүүнэ
-  var form = document.querySelector("[data-search]");
-  if (form) {
-    var input = form.querySelector("input");
-    var items = document.querySelectorAll("[data-q]");
-    var empty = document.querySelector("[data-empty]");
-    var filter = function () {
-      var q = input.value.trim().toLowerCase(), any = false;
-      items.forEach(function (el) {
-        var hit = !q || el.getAttribute("data-q").indexOf(q) !== -1;
-        el.hidden = !hit;
-        if (hit) any = true;
-      });
-      if (empty) empty.hidden = any;
-    };
-    input.addEventListener("input", filter);
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      filter();
-      var first = document.querySelector("section.country[data-q]:not([hidden])");
-      (input.value.trim() && first ? first : document.getElementById("esim")).scrollIntoView();
+  // Жагсаалтын шүүлтүүр: сонголт өөрчлөгдмөгц хуудсыг шинэчилнэ; утсан дээр анхнаасаа хураалттай
+  var filters = document.querySelector("[data-filters]");
+  if (filters) {
+    filters.addEventListener("change", function (e) {
+      if (e.target.name !== "q") filters.submit();
     });
+    var box = filters.querySelector("[data-collapse]");
+    if (box && window.matchMedia("(max-width: 959px)").matches) box.removeAttribute("open");
+  }
+
+  // Танилцуулга хуудас: тоо ширхэг сонгоход нийт үнийг шинэчилнэ
+  var buy = document.querySelector("[data-buy]");
+  if (buy) {
+    var qty = buy.querySelector("input[name=quantity]"), total = buy.querySelector("[data-total]");
+    var price = Number(buy.dataset.price), max = Number(qty.max);
+    var update = function (value) {
+      var n = Math.min(Math.max(parseInt(value, 10) || 1, 1), max);
+      qty.value = n;
+      total.textContent = (price * n).toLocaleString("en-US") + "₮";
+    };
+    buy.querySelectorAll("[data-step]").forEach(function (b) {
+      b.addEventListener("click", function () { update(Number(qty.value) + Number(b.dataset.step)); });
+    });
+    qty.addEventListener("change", function () { update(qty.value); });
+
+    // Утсан дээрх доод мөрийг худалдан авах карт харагдах үед нууна
+    var bar = document.querySelector("[data-mbar]");
+    if (bar && "IntersectionObserver" in window) {
+      new IntersectionObserver(function (entries) {
+        bar.classList.toggle("away", entries[0].isIntersecting);
+      }).observe(buy);
+    }
   }
 
   // Хүснэгтийг баганын толгой дээр дарж эрэмбэлнэ

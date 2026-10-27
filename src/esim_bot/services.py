@@ -49,7 +49,7 @@ async def build_services(
     if payments is None and settings.fake_payments:
         payments = FakeQPay()
     if isinstance(payments, FakeQPay):
-        await seed_demo_stock(db)
+        await seed_demo_stock(db, catalog)
     if payments is None:
         payments = QPayClient(
             http,

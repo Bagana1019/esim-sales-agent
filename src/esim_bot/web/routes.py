@@ -1,4 +1,5 @@
 import hashlib
+import json
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -12,9 +13,13 @@ from ..db import OrderStatus
 from ..delivery import product_label
 from ..payments.fake import FakeQPay
 from ..payments.qpay import QPayError
+from . import listing
 from .store import WebStore, is_valid_email
 
 STATIC_DIR = Path(__file__).parent / "static"
+# ISO кодын монгол нэр (Unicode CLDR-ээс үүсгэж, урт нэрсийг товчилсон)
+COUNTRY_NAMES: dict[str, str] = json.loads((Path(__file__).parent / "country_names.json").read_text(encoding="utf-8"))
+MAX_QUANTITY = 5  # нэг захиалгад нэг багцаас авах дээд тоо
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -34,7 +39,12 @@ def flag_url(country_code: str) -> str | None:
     return f"/static/{path}" if (STATIC_DIR / path).is_file() else None
 
 
-templates.env.globals.update(asset=asset, flag_url=flag_url, format_mnt=format_mnt)
+def country_name(code: str) -> str:
+    return COUNTRY_NAMES.get(code, code)
+
+
+templates.env.globals.update(asset=asset, flag_url=flag_url, format_mnt=format_mnt, country_name=country_name)
+templates.env.filters["country_name"] = country_name
 
 
 def _store(request: Request) -> WebStore:
@@ -50,9 +60,52 @@ def _render(request: Request, name: str, status_code: int = 200, **context: Any)
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
     catalog = _store(request).catalog
-    groups = [(c, packages) for c in catalog.countries if (packages := catalog.packages_for(c.code))]
-    deal = min(((c, p) for c, packages in groups for p in packages), key=lambda cp: cp[1].price_mnt, default=None)
-    return _render(request, "index.html", groups=groups, licenses=catalog.licenses, deal=deal)
+    tiles = [(c, packages) for c in catalog.countries if (packages := catalog.packages_covering(c.code))]
+    deal = min(catalog.packages, key=lambda p: p.price_mnt, default=None)
+    covered = len({code for p in catalog.packages for code in p.countries})
+    return _render(
+        request, "index.html", tiles=tiles, licenses=catalog.licenses, deal=deal, total=len(catalog.packages), covered=covered
+    )
+
+
+@router.get("/esim", response_class=HTMLResponse)
+async def esim_list(request: Request) -> HTMLResponse:
+    catalog = _store(request).catalog
+    filters = listing.Filters.parse(catalog, request.query_params)
+    return _render(
+        request,
+        "esim_list.html",
+        filters=filters,
+        packages=listing.apply(catalog, filters, COUNTRY_NAMES),
+        countries=catalog.countries,
+        country=catalog.country(filters.country) if filters.country else None,
+        listing=listing,
+    )
+
+
+def _detail_context(request: Request, sku: str) -> dict[str, Any]:
+    catalog = _store(request).catalog
+    package = catalog.package(sku)
+    if package is None:
+        raise HTTPException(status_code=404)
+    country = catalog.country(package.country)
+    if package.region:  # ижил бүсийн бусад багц
+        similar = [p for p in catalog.packages if p.region == package.region]
+    else:  # ижил улсын бусад багц
+        similar = [p for p in catalog.packages_for(package.country) if not p.region]
+    related = sorted((p for p in similar if p.sku != sku), key=lambda p: abs(p.price_mnt - package.price_mnt))[:4]
+    return {
+        "package": package,
+        "country": country,
+        "notes": country.notes if country and not package.region else "",
+        "related": sorted(related, key=lambda p: p.price_mnt),
+        "max_quantity": MAX_QUANTITY,
+    }
+
+
+@router.get("/esim/{sku}", response_class=HTMLResponse)
+async def esim_detail(request: Request, sku: str) -> HTMLResponse:
+    return _render(request, "esim_detail.html", **_detail_context(request, sku))
 
 
 def _checkout_context(request: Request, sku: str) -> dict[str, Any]:
@@ -64,21 +117,33 @@ def _checkout_context(request: Request, sku: str) -> dict[str, Any]:
 
 
 @router.get("/checkout", response_class=HTMLResponse)
-async def checkout_page(request: Request, sku: str) -> HTMLResponse:
-    return _render(request, "checkout.html", **_checkout_context(request, sku))
+async def checkout_page(request: Request, sku: str) -> Any:
+    context = _checkout_context(request, sku)
+    if context["is_esim"]:  # eSIM-ийг танилцуулга хуудаснаас нь захиална
+        return RedirectResponse(f"/esim/{sku}", status_code=303)
+    return _render(request, "checkout.html", **context)
 
 
 @router.post("/checkout")
-async def checkout_submit(request: Request, sku: str = Form(...), email: str = Form(...)) -> Any:
+async def checkout_submit(
+    request: Request, sku: str = Form(...), email: str = Form(...), quantity: int = Form(1)
+) -> Any:
     context = _checkout_context(request, sku)
+    quantity = min(max(quantity, 1), MAX_QUANTITY) if context["is_esim"] else 1
     email = email.strip()
+
+    def form_error(status_code: int, error: str) -> HTMLResponse:
+        if context["is_esim"]:
+            detail = _detail_context(request, sku)
+            return _render(request, "esim_detail.html", status_code, email=email, quantity=quantity, error=error, **detail)
+        return _render(request, "checkout.html", status_code, email=email, error=error, **context)
+
     if not is_valid_email(email):
-        return _render(request, "checkout.html", 400, email=email, error="И-мэйл хаяг буруу байна.", **context)
+        return form_error(400, "И-мэйл хаяг буруу байна.")
     try:
-        order = await _store(request).checkout(sku, email)
+        order = await _store(request).checkout(sku, email, quantity)
     except QPayError:
-        error = "Төлбөрийн систем түр ажиллахгүй байна. Хэсэг хугацааны дараа дахин оролдоно уу."
-        return _render(request, "checkout.html", 503, email=email, error=error, **context)
+        return form_error(503, "Төлбөрийн систем түр ажиллахгүй байна. Хэсэг хугацааны дараа дахин оролдоно уу.")
     return RedirectResponse(_store(request).order_path(order), status_code=303)
 
 

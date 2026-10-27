@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, pkg_flag, pkg_name, places, svg %}
+{% block title %}{{ pkg_name(package) }} · {{ package.days }} хоног, {{ package.data }} — {{ shop }}{% endblock %}
+{% block content %}
+{% set qty = quantity or 1 %}
+<div class="wrap page">
+  <nav class="crumbs" aria-label="Байршил">
+    <a href="/">Нүүр</a><span aria-hidden="true">/</span>
+    <a href="/esim{{ '?country=' ~ package.country if not package.region }}">eSIM багцууд</a><span aria-hidden="true">/</span>
+    <span>{{ pkg_name(package) }} · {{ package.data }}</span>
+  </nav>
+
+  <div class="detail">
+    <div class="detail-main">
+      <section class="dhero">
+        <span class="dflag">{{ pkg_flag(package) }}</span>
+        <h1>{{ pkg_name(package) }} · {{ package.days }} хоног, {{ package.data }}</h1>
+        <p>{% if package.region %}{{ package.countries|length }} улсад нэг eSIM-ээр ажиллана: {{ places(package, 4) }}{% else %}Ажиллах улс: {{ package.country|country_name }}{% endif %}</p>
+        <div class="dchips">
+          <span>{{ svg("days") }}{{ package.days }} хоног</span>
+          <span>{{ svg("data") }}{{ package.data }}</span>
+          <span>{{ svg("globe") }}{{ package.countries|length }} улс</span>
+        </div>
+      </section>
+
+      <div class="alert">
+        {{ svg("alert") }}
+        <div><b class="alert-title">Анхааруулга</b>Худалдан авахаасаа өмнө утсаа eSIM дэмждэг эсэхийг шалгаарай: утсандаа <b>*#06#</b> залгахад EID дугаар гарч ирвэл дэмждэг. Утас operator-lock-гүй байх ёстой.</div>
+      </div>
+
+      <section class="dsection">
+        <h2 class="sm">Багцын тухай</h2>
+        {% if notes %}<div class="note">{{ svg("info") }}<span>{{ notes }}</span></div>{% endif %}
+        <ul class="facts">
+          <li>{{ svg("check") }}<span>Хүчинтэй хугацаа: <b>{{ package.days }} хоног</b>.</span></li>
+          <li>{{ svg("check") }}<span>Дата: <b>{{ package.data }}</b>{% if package.daily %} — өдөр бүр шинэчлэгдэнэ{% endif %}.</span></li>
+          {% if package.region %}
+          <li>{{ svg("check") }}<span>{{ package.countries|length }} улсад нэг eSIM-ээр ажиллах тул улс солиход шинэ SIM авах шаардлагагүй.</span></li>
+          {% endif %}
+          <li>{{ svg("check") }}<span>Төлбөр ормогц eSIM-ийн QR код, суулгах зааврын хамт таны и-мэйл рүү очно.</span></li>
+          <li>{{ svg("check") }}<span>Аялахаасаа өмнө Wi-Fi-тэй газар суулгаад, очсон газраа тухайн eSIM дээр Data Roaming-ийг асаана.</span></li>
+          <li>{{ svg("check") }}<span>QR кодыг ихэвчлэн нэг л удаа суулгах боломжтой тул eSIM-ээ утаснаасаа бүү устгаарай.</span></li>
+        </ul>
+      </section>
+
+      <section class="dsection">
+        <h2 class="sm">Хэрхэн суулгах вэ</h2>
+        <div class="install">
+          <div><b>iPhone</b><span>Settings → Cellular → Add eSIM → Use QR Code</span></div>
+          <div><b>Android</b><span>Settings → Connections → SIM manager → Add eSIM → Scan QR code</span></div>
+        </div>
+      </section>
+
+      <section class="dsection">
+        <div class="dsection-head"><h2 class="sm">Хамрах хүрээ</h2><span class="muted">{{ package.countries|length }} улс</span></div>
+        {% set main = ["CN", "KR", "JP", "TH"] %}
+        {% set ordered = (main|select("in", package.countries)|list) + (package.countries|reject("in", main)|list) %}
+        {% macro chip(code) %}<span class="cchip">{% set url = flag_url(code) %}{% if url %}<img src="{{ url }}" alt="" width="64" height="64" loading="lazy">{% endif %}{{ code|country_name }}</span>{% endmacro %}
+        <div class="cchips">{% for code in ordered[:16] %}{{ chip(code) }}{% endfor %}</div>
+        {% if ordered|length > 16 %}
+        <details class="more"><summary>Бүх {{ ordered|length }} улсыг харах</summary><div class="cchips">{% for code in ordered[16:] %}{{ chip(code) }}{% endfor %}</div></details>
+        {% endif %}
+      </section>
+    </div>
+
+    <aside class="summary">
+      <form class="card buybox" id="buy" method="post" action="/checkout" data-buy data-price="{{ package.price_mnt }}">
+        <h2 class="sm">Хураангуй</h2>
+        <div class="row"><span>Хугацаа</span><b>{{ package.days }} хоног</b></div>
+        <div class="row"><span>Дата</span><b>{{ package.data }}</b></div>
+        <div class="row"><span>Хамрах хүрээ</span><b>{{ package.countries|length }} улс</b></div>
+        <div class="row"><span>Үнэ</span><b class="mono">{{ format_mnt(package.price_mnt) }}</b></div>
+        <div class="row qty-row">
+          <label for="quantity">Тоо ширхэг</label>
+          <span class="stepper">
+            <button type="button" data-step="-1" aria-label="Хасах">−</button>
+            <input id="quantity" name="quantity" type="number" min="1" max="{{ max_quantity }}" value="{{ qty }}" inputmode="numeric">
+            <button type="button" data-step="1" aria-label="Нэмэх">+</button>
+          </span>
+        </div>
+        <div class="note">{{ svg("info") }}<span>eSIM-ийн QR код и-мэйлээр очих тул хаягаа зөв бичээрэй. Олон ширхэг авбал eSIM бүр тусдаа QR-тэй.</span></div>
+        <input type="hidden" name="sku" value="{{ package.sku }}">
+        <label class="sr-only" for="email">И-мэйл хаяг</label>
+        <input id="email" name="email" type="email" required autocomplete="email" placeholder="И-мэйл хаяг" value="{{ email or '' }}">
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        <div class="row total"><span>Нийт үнэ</span><b data-total>{{ format_mnt(package.price_mnt * qty) }}</b></div>
+        <button class="btn shine" type="submit">QPay-ээр төлөх</button>
+        <div class="secure">{{ icon("lock", "sm", lazy=false) }}<div><b>QPay-ээр аюулгүй төлнө</b>Банкны аппаараа QR уншуулж эсвэл аппаа сонгоод төлнө.</div></div>
+      </form>
+    </aside>
+  </div>
+  <div class="mbar" data-mbar>
+    <div><span>{{ package.days }} хоног · {{ package.data }}</span><b class="mono">{{ format_mnt(package.price_mnt) }}</b></div>
+    <a class="btn pill" href="#buy">Захиалах</a>
+  </div>
+
+  {% if related %}
+  <section class="section">
+    <div class="section-head"><h2 class="sm">{{ "Ижил бүсийн" if package.region else "Ижил улсын" }} бусад багц</h2><a href="/esim{{ '?country=' ~ package.country if not package.region }}">Бүгдийг харах →</a></div>
+    <div class="pgrid related">
+      {% for p in related %}
+      <a class="tile pcard" href="/esim/{{ p.sku }}">
+        <span class="pcard-top"><span class="pflag">{{ pkg_flag(p) }}</span><span class="badge">{{ p.days }} хоног</span><span class="pprice">{{ format_mnt(p.price_mnt) }}</span></span>
+        <span class="pcard-title">{{ pkg_name(p) }} · {{ p.data|replace("Нийт ", "") }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
