@@ -15,7 +15,8 @@ from fastapi.staticfiles import StaticFiles
 
 from .channels.telegram import dispatch, parse_update
 from .config import get_settings
-from .services import Services, build_services
+from .payments.fake import FakeQPay
+from .services import ConfigError, Services, build_services
 from .web.routes import STATIC_DIR
 from .web.routes import router as web_router
 
@@ -30,7 +31,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not settings.telegram_webhook_secret:
         log.warning("TELEGRAM_WEBHOOK_SECRET тохируулаагүй — webhook-ийг хэн ч дуудаж болно")
     app.state.settings = settings
-    app.state.services = await build_services(settings)
+    try:
+        app.state.services = await build_services(settings)
+    except ConfigError as e:
+        log.error("%s", e)
+        raise
+    payments = app.state.services.payments
+    if isinstance(payments, FakeQPay):
+        log.warning("FAKE_PAYMENTS=true — хуурамч төлбөр, жинхэнэ мөнгө авахгүй")
+    elif settings.qpay_sandbox:
+        log.warning("QPay sandbox горим — жинхэнэ мөнгө хөдлөхгүй")
+    elif "localhost" in settings.public_base_url or "127.0.0.1" in settings.public_base_url:
+        log.warning("PUBLIC_BASE_URL локал тул QPay callback ирэхгүй — төлбөрийг захиалгын хуудас нээлттэй үед шалгана")
     log.info("И-мэйл: %s", app.state.services.web.mailer)
     yield
     await app.state.services.aclose()

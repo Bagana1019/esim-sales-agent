@@ -7,12 +7,15 @@
   uv run esim stock                  # үлдэгдэл харах
   uv run esim set-webhook            # Telegram webhook бүртгэх
   uv run esim test-email you@mail.mn # и-мэйлийн тохиргоог (Mailgun/SMTP) шалгах
+  uv run esim qpay-test              # QPay-ийн түлхүүрийг 100₮-ийн жинхэнэ төлбөрөөр шалгах
 """
 
 import argparse
 import asyncio
 import logging
+import time
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 
@@ -21,9 +24,11 @@ from .channels.base import Button, Keyboard
 from .channels.telegram import dispatch, parse_update
 from .config import get_settings, missing_token_hint
 from .db import Database
+from .delivery import qr_png
 from .inventory import import_esims, import_licenses, stock_by_sku
 from .mailer import FileMailer
 from .payments.fake import FakeQPay
+from .payments.qpay import QPayClient, QPayError
 from .services import build_mailer, build_services
 
 OUT_DIR = Path("out")
@@ -189,6 +194,53 @@ async def test_email(to: str) -> None:
     print(f"Илгээгээгүй, {mailer.outbox} хавтаст хадгаллаа" if isinstance(mailer, FileMailer) else f"{to} руу илгээлээ")
 
 
+async def qpay_test(amount: int, wait_minutes: float = 10, poll_seconds: float = 5) -> None:
+    """Жинхэнэ нэхэмжлэх үүсгэж, төлөгдөхийг хүлээнэ — захиалга, нөөцөд хүрэхгүй."""
+    settings = get_settings()
+    if errors := settings.production_errors():
+        raise SystemExit("Эхлээд .env-ийг засна уу:\n- " + "\n- ".join(errors))
+    mode = "SANDBOX (жинхэнэ мөнгө хөдлөхгүй)" if settings.qpay_sandbox else "ЖИНХЭНЭ — мөнгө таны merchant данс руу орно"
+    print(f"QPay: {settings.qpay_base_url} · {mode}")
+    async with httpx.AsyncClient(timeout=30) as http:
+        qpay = QPayClient(
+            http,
+            base_url=settings.qpay_base_url,
+            client_id=settings.qpay_client_id,
+            client_secret=settings.qpay_client_secret,
+            invoice_code=settings.qpay_invoice_code,
+        )
+        try:
+            invoice = await qpay.create_invoice(
+                order_id=f"test-{uuid4().hex[:8]}",
+                amount=amount,
+                description=f"{settings.shop_name} туршилтын төлбөр",
+                callback_url=f"{settings.public_base_url.rstrip('/')}/health",
+            )
+        except (QPayError, httpx.HTTPError) as e:
+            raise SystemExit(f"Нэхэмжлэх үүсгэж чадсангүй: {e}") from e
+        print("✅ Нэвтрэлт, нэхэмжлэх ажиллаж байна (CLIENT_ID, CLIENT_SECRET, INVOICE_CODE зөв)")
+
+        OUT_DIR.mkdir(exist_ok=True)
+        png = OUT_DIR / "qpay-test.png"
+        png.write_bytes(qr_png(invoice.qr_text))
+        print(f"\nQR код: {png.resolve()}")
+        if invoice.short_url:
+            print(f"Эсвэл утсаараа нээж банкаа сонгоно: {invoice.short_url}")
+        print(f"\nБанкны аппаараа {amount}₮ төлнө үү. Төлбөр орохыг хүлээж байна... (Ctrl+C зогсооно)")
+
+        deadline = time.monotonic() + wait_minutes * 60
+        while time.monotonic() < deadline:
+            await asyncio.sleep(poll_seconds)
+            try:
+                payment_id = await qpay.find_payment(invoice.invoice_id, amount)
+            except (QPayError, httpx.HTTPError) as e:
+                raise SystemExit(f"Төлбөр шалгаж чадсангүй: {e}") from e
+            if payment_id:
+                print(f"✅ Төлбөр орлоо (payment_id {payment_id}). QPay бүрэн ажиллаж байна.")
+                return
+        raise SystemExit(f"{wait_minutes:g} минутад төлбөр орсонгүй. Дахин оролдоно уу.")
+
+
 async def set_webhook() -> None:
     settings = get_settings()
     services = await build_services(settings)
@@ -216,6 +268,8 @@ def main() -> None:
     sub.add_parser("stock", help="eSIM, лицензийн үлдэгдэл (дууссаныг тэмдэглэнэ)")
     sub.add_parser("set-webhook", help="Telegram webhook бүртгэх")
     p_mail = sub.add_parser("test-email", help="и-мэйлийн тохиргоог (Mailgun/SMTP) шалгах")
+    p_qpay = sub.add_parser("qpay-test", help="QPay-ийн түлхүүрийг жинхэнэ жижиг төлбөрөөр шалгах")
+    p_qpay.add_argument("--amount", type=int, default=100, help="төлөх дүн, ₮ (анхдагч 100)")
     p_mail.add_argument("to", help="хүлээн авах хаяг")
     args = parser.parse_args()
 
@@ -236,6 +290,11 @@ def main() -> None:
         asyncio.run(set_webhook())
     elif args.cmd == "test-email":
         asyncio.run(test_email(args.to))
+    elif args.cmd == "qpay-test":
+        try:
+            asyncio.run(qpay_test(args.amount))
+        except KeyboardInterrupt:
+            print("\nЗогслоо")
 
 
 if __name__ == "__main__":

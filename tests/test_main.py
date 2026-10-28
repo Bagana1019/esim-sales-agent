@@ -50,3 +50,24 @@ def test_missing_token_hint(tmp_path, monkeypatch):
     assert "Rename-Item .env.txt .env" in missing_token_hint("TELEGRAM_BOT_TOKEN")
     (tmp_path / ".env").write_text("TELEGRAM_BOT_TOKEN=\n")
     assert "утга бичигдээгүй" in missing_token_hint("TELEGRAM_BOT_TOKEN")
+
+
+def test_live_qpay_refuses_default_secrets(tmp_path, monkeypatch):
+    from esim_bot.config import Settings
+    from esim_bot.services import ConfigError
+
+    live = {"qpay_base_url": "https://merchant.qpay.mn/v2", "database_url": f"sqlite+aiosqlite:///{tmp_path}/live.db"}
+    errors = Settings(_env_file=None, **live).production_errors()
+    assert len(errors) == 2 and "CALLBACK_SECRET" in errors[0] and "QPAY_CLIENT_ID" in errors[1]
+    assert Settings(_env_file=None).production_errors() == []  # sandbox
+    good = Settings(_env_file=None, **live, callback_secret="x" * 32, qpay_client_id="NOMADDATA", qpay_invoice_code="NOMADDATA_INVOICE")
+    assert good.production_errors() == []
+
+    monkeypatch.setenv("DATABASE_URL", live["database_url"])
+    monkeypatch.setenv("QPAY_BASE_URL", live["qpay_base_url"])
+    monkeypatch.setenv("FAKE_PAYMENTS", "false")
+    monkeypatch.setenv("CALLBACK_SECRET", "change-me")
+    get_settings.cache_clear()
+    with pytest.raises(ConfigError, match="CALLBACK_SECRET"), TestClient(main.app):
+        pass
+    get_settings.cache_clear()
