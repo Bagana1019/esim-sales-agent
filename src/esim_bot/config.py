@@ -61,6 +61,25 @@ class Settings(BaseSettings):
     qpay_invoice_code: str = "TEST_INVOICE"
     callback_secret: str = "change-me"
 
+    @property
+    def qpay_sandbox(self) -> bool:
+        return "sandbox" in self.qpay_base_url
+
+    def production_errors(self) -> list[str]:
+        """Жинхэнэ QPay-д (sandbox биш) асахаас өмнө заавал засах тохиргоо."""
+        if self.fake_payments or self.qpay_sandbox:
+            return []
+        errors = []
+        if self.callback_secret == "change-me" or len(self.callback_secret) < 24:
+            # Захиалгын холбоос (QR код, түлхүүр) энэ нууцаар гарын үсэглэгддэг
+            errors.append(
+                "CALLBACK_SECRET-д 24-өөс урт санамсаргүй утга бичнэ. Үүсгэх: "
+                'uv run python -c "import secrets; print(secrets.token_urlsafe(32))"'
+            )
+        if "TEST_" in self.qpay_client_id + self.qpay_invoice_code:
+            errors.append("QPAY_CLIENT_ID, QPAY_CLIENT_SECRET, QPAY_INVOICE_CODE-д QPay-ээс авсан утгаа бичнэ")
+        return errors
+
 
 def missing_token_hint(name: str) -> str:
     """Тохиргоо олдохгүй үед .env файлын байдлыг тайлбарласан мессеж."""

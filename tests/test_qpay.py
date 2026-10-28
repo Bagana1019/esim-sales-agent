@@ -78,3 +78,30 @@ async def test_errors_raise(client):
     respx.post(f"{BASE}/auth/token").mock(return_value=httpx.Response(401, text="bad credentials"))
     with pytest.raises(QPayError):
         await client.find_payment("inv-1", 1)
+
+
+@respx.mock
+async def test_qpay_test_command_waits_for_payment(tmp_path, monkeypatch, capsys):
+    from esim_bot.cli import qpay_test
+    from esim_bot.config import get_settings
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("QPAY_BASE_URL", BASE)
+    get_settings.cache_clear()
+    respx.post(f"{BASE}/auth/token").mock(return_value=token_response())
+    invoice = respx.post(f"{BASE}/invoice").mock(
+        return_value=httpx.Response(200, json={"invoice_id": "inv-9", "qr_text": "000201", "qPay_shortUrl": "https://s.qpay.mn/x"})
+    )
+    respx.post(f"{BASE}/payment/check").mock(
+        side_effect=[
+            httpx.Response(200, json={"rows": []}),
+            httpx.Response(200, json={"rows": [{"payment_id": "p-9", "payment_status": "PAID", "payment_amount": 100}]}),
+        ]
+    )
+    await qpay_test(100, poll_seconds=0)
+    get_settings.cache_clear()
+
+    out = capsys.readouterr().out
+    assert "SANDBOX" in out and "https://s.qpay.mn/x" in out and "Төлбөр орлоо (payment_id p-9)" in out
+    assert '"amount":100' in invoice.calls.last.request.read().decode()
+    assert (tmp_path / "out" / "qpay-test.png").read_bytes().startswith(b"\x89PNG")

@@ -140,6 +140,26 @@ QR код, түлхүүр захиалгын хуудсанд гарч, адми
 QPay sandbox-ийн тестийн утгууд (`TEST_MERCHANT` / `123456` / `TEST_INVOICE`) `.env.example`-д
 бий. Production-д QPay-тэй гэрээ байгуулж авсан client_id, secret, invoice_code-оо тавина.
 
+#### Жинхэнэ QPay руу шилжих
+
+1. `.env`-д:
+   ```
+   FAKE_PAYMENTS=false
+   QPAY_BASE_URL=https://merchant.qpay.mn/v2
+   QPAY_CLIENT_ID=...          # QPay-ээс авсан
+   QPAY_CLIENT_SECRET=...
+   QPAY_INVOICE_CODE=...
+   CALLBACK_SECRET=...         # uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
+   ```
+   `CALLBACK_SECRET` анхдагч хэвээр эсвэл QPay-ийн тест утгууд үлдсэн бол сервер асахгүй, юуг засахыг хэлнэ.
+   `CALLBACK_SECRET`-ийг дараа нь солибол өмнөх захиалгын холбоосууд ажиллахаа болино.
+2. `uv run esim qpay-test` — 100₮-ийн жинхэнэ нэхэмжлэх үүсгэж (`out/qpay-test.png` QR), банкны
+   аппаар төлөхөд "Төлбөр орлоо" гэж хэлнэ. Захиалга, eSIM-ийн нөөцөд хүрэхгүй. Домэйн шаардахгүй.
+3. Домэйнгүй локал дээр ч жинхэнэ захиалга ажиллана: QPay callback ирэхгүй ч захиалгын хуудас
+   нээлттэй байхад QPay-ээс 5 секунд тутам шалгана. Харин туршилтын (`TEST-...`) eSIM-тэй хуучин
+   `esim.db`-тэй бол жинхэнэ мөнгөөр туршилтын eSIM олгоно — тусдаа сан ашиглана:
+   `DATABASE_URL=sqlite+aiosqlite:///./live.db`.
+
 > Хөгжүүлэлтийн явцад өгөгдлийн сангийн бүтэц өөрчлөгдвөл бот "бүтэц хуучирсан" гэж мэдэгдэнэ.
 > Туршилтын өгөгдөл бол `esim.db` файлыг устгаад дахин асаана.
 

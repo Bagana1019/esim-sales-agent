@@ -20,6 +20,10 @@ from .payments.qpay import PaymentGateway, QPayClient
 from .web.store import WebStore
 
 
+class ConfigError(Exception):
+    pass
+
+
 @dataclass
 class Services:
     http: httpx.AsyncClient
@@ -64,6 +68,8 @@ async def build_services(
     if isinstance(payments, FakeQPay):
         await seed_demo_stock(db, catalog)
     if payments is None:
+        if errors := settings.production_errors():
+            raise ConfigError("Жинхэнэ QPay-д асахаас өмнө .env-ийг засна уу:\n- " + "\n- ".join(errors))
         payments = QPayClient(
             http,
             base_url=settings.qpay_base_url,
