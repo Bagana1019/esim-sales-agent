@@ -3,12 +3,20 @@
 import base64
 import logging
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from typing import Any
 
 from ..catalog import Catalog
 from ..db import EsimProfile, LicenseKey, Order, OrderStatus
-from ..delivery import DEFAULT_ACTIVATION, esim_message, license_message, multi_esim_note, product_label, qr_png
+from ..delivery import (
+    DEFAULT_ACTIVATION,
+    esim_message,
+    license_message,
+    low_stock_text,
+    multi_esim_note,
+    product_label,
+    qr_png,
+)
 from ..fulfillment import Item
 from ..mailer import Attachment, Mailer
 from ..orders import OrderService, PaymentOutcome, PaymentResult
@@ -62,6 +70,10 @@ class WebStore:
     def order_path(self, order: Order) -> str:
         return f"/order/{order.id}?t={self.orders.access_token(order.id)}"
 
+    async def stock(self, skus: Iterable[str]) -> dict[str, int]:
+        """Одоо худалдаж болох тоо, sku тус бүрээр."""
+        return await self.orders.fulfillment.available(skus)
+
     async def checkout(self, sku: str, email: str, phone: str, quantity: int = 1) -> Order:
         order, _ = await self.orders.create_order(self.channel, email, [sku] * quantity, phone=phone)
         return order
@@ -87,6 +99,8 @@ class WebStore:
         except QPayError:
             log.exception("Payment check failed for %s", order_id)
             return None
+        if result.low_stock:
+            await self.notify_admin(low_stock_text(self.catalog, result.low_stock))
         if result.outcome == PaymentOutcome.OUT_OF_STOCK and result.newly_failed:
             order = result.order
             await self._mail(

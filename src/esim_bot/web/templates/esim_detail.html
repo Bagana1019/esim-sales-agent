@@ -67,15 +67,15 @@
                 "eSIM-ийн QR код", max_quantity, quantity or 1, email, phone, error) }}
     </aside>
   </div>
-  {{ mbar(package.days ~ " хоног · " ~ package.data, package.price_mnt) }}
+  {{ mbar(package.days ~ " хоног · " ~ package.data, package.price_mnt, max_quantity < 1) }}
 
   {% if related %}
   <section class="section">
     <div class="section-head"><h2 class="sm">{{ "Ижил бүсийн" if package.region else "Ижил улсын" }} бусад багц</h2><a href="/esim{{ '?country=' ~ package.country if not package.region }}">Бүгдийг харах →</a></div>
     <div class="pgrid related">
       {% for p in related %}
-      <a class="tile pcard" href="/esim/{{ p.sku }}">
-        <span class="pcard-top"><span class="pflag">{{ pkg_flag(p) }}</span><span class="badge">{{ p.days }} хоног</span><span class="pprice">{{ format_mnt(p.price_mnt) }}</span></span>
+      <a class="tile pcard{% if not stock[p.sku] %} soldout{% endif %}" href="/esim/{{ p.sku }}">
+        <span class="pcard-top"><span class="pflag">{{ pkg_flag(p) }}</span><span class="badge{% if not stock[p.sku] %} gray{% endif %}">{{ p.days ~ " хоног" if stock[p.sku] else "Түр дууссан" }}</span><span class="pprice">{{ format_mnt(p.price_mnt) }}</span></span>
         <span class="pcard-title">{{ pkg_name(p) }} · {{ p.data|replace("Нийт ", "") }}</span>
       </a>
       {% endfor %}

@@ -49,6 +49,10 @@
   <h2 class="sm">Хураангуй</h2>
   {% for label, value in rows %}<div class="row"><span>{{ label }}</span><b>{{ value }}</b></div>{% endfor %}
   <div class="row"><span>Үнэ</span><b class="mono">{{ format_mnt(price) }}</b></div>
+  {% if max_quantity < 1 %}
+  <div class="status wait">{{ icon("hourglass", lazy=false) }}<span>Түр дууссан. Удахгүй нэмэгдэнэ — ижил төстэй бүтээгдэхүүнээс сонгоно уу.</span></div>
+  <button class="btn" type="button" disabled>Түр дууссан</button>
+  {% else %}
   <div class="row qty-row">
     <label for="quantity">Тоо ширхэг</label>
     <span class="stepper">
@@ -57,6 +61,7 @@
       <button type="button" data-step="1" aria-label="Нэмэх">+</button>
     </span>
   </div>
+  {% if max_quantity <= 3 %}<p class="help stock-left">Сүүлийн {{ max_quantity }} ширхэг</p>{% endif %}
   <div class="note">{{ svg("info") }}<span>{{ delivers }} и-мэйлээр очих тул хаягаа зөв бичээрэй. Олон ширхэг авбал тус бүр тусдаа очно.</span></div>
   <input type="hidden" name="sku" value="{{ sku }}">
   <label class="sr-only" for="email">И-мэйл хаяг</label>
@@ -68,13 +73,14 @@
   <div class="row total"><span>Нийт үнэ</span><b data-total>{{ format_mnt(price * qty) }}</b></div>
   <button class="btn shine" type="submit">QPay-ээр төлөх</button>
   <div class="secure">{{ icon("lock", "sm", lazy=false) }}<div><b>QPay-ээр аюулгүй төлнө</b>Банкны аппаараа QR уншуулж эсвэл аппаа сонгоод төлнө.</div></div>
+  {% endif %}
 </form>
 {%- endmacro %}
 
 {# Утсан дээрх доод "Захиалах" мөр #}
-{% macro mbar(caption, price) -%}
+{% macro mbar(caption, price, soldout=false) -%}
 <div class="mbar" data-mbar>
   <div><span>{{ caption }}</span><b class="mono">{{ format_mnt(price) }}</b></div>
-  <a class="btn pill" href="#buy">Захиалах</a>
+  <a class="btn pill{% if soldout %} secondary{% endif %}" href="#buy">{{ "Түр дууссан" if soldout else "Захиалах" }}</a>
 </div>
 {%- endmacro %}

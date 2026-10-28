@@ -52,7 +52,7 @@ TOOLS: list[dict[str, Any]] = [
     _tool("list_countries", "Манай eSIM зарж буй улсуудын жагсаалт."),
     _tool(
         "list_packages",
-        "Тухайн улсын бүх багц: sku, хоног, дата, үнэ. Үнэ хэлэхээс өмнө заавал дуудна.",
+        "Тухайн улсын бүх багц: sku, хоног, дата, үнэ, in_stock (false бол түр дууссан). Үнэ хэлэхээс өмнө заавал дуудна.",
         _COUNTRY_CODE,
     ),
     _tool(
@@ -100,8 +100,9 @@ async def list_packages(ctx: ToolContext, country_code: str) -> Any:
     packages = ctx.bot.catalog.packages_for(country_code)
     if not packages:
         raise ToolError(f"{country_code} улсад багц байхгүй. list_countries-оор боломжит улсуудыг харна уу.")
+    stock = await ctx.bot.orders.fulfillment.available(p.sku for p in packages)
     return [
-        {"sku": p.sku, "days": p.days, "data": p.data, "price": format_mnt(p.price_mnt)}
+        {"sku": p.sku, "days": p.days, "data": p.data, "price": format_mnt(p.price_mnt), "in_stock": stock[p.sku] > 0}
         | ({"region": p.region.name, "countries": list(p.region.countries)} if p.region else {})
         for p in packages
     ]
@@ -124,6 +125,9 @@ async def create_payment(ctx: ToolContext, skus: list[str]) -> Any:
         raise ToolError("Нэг захиалгад 1-3 бүтээгдэхүүн багтана.")
     if unknown := [sku for sku in skus if ctx.bot.catalog.product(sku) is None]:
         raise ToolError(f"{', '.join(unknown)} гэсэн бүтээгдэхүүн байхгүй. Каталогийн sku-г шалгана уу.")
+    available = await ctx.bot.orders.fulfillment.available(set(skus))
+    if sold_out := [sku for sku in skus if available[sku] < skus.count(sku)]:
+        raise ToolError(f"{', '.join(sold_out)} түр дууссан (in_stock=false). Нөөцтэй өөр багц санал болгоно уу.")
     order = await ctx.bot.start_checkout(ctx.channel, ctx.chat_id, skus)
     if order is None:
         raise ToolError("Нэхэмжлэх үүсгэж чадсангүй, төлбөрийн систем түр ажиллахгүй байна.")

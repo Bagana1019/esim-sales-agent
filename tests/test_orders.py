@@ -1,6 +1,10 @@
+import pytest
+
 from esim_bot.db import OrderStatus
 from esim_bot.inventory import seed_demo_stock, stock_by_sku
-from esim_bot.orders import PaymentOutcome
+from esim_bot.orders import OutOfStock, PaymentOutcome
+
+from .conftest import take_stock
 
 
 class DeliverySpy:
@@ -46,8 +50,30 @@ async def test_each_order_gets_its_own_profile(orders, qpay, db):
     assert "JP-5D-3GB" not in await stock_by_sku(db)
 
 
+async def test_out_of_stock_items_cannot_be_ordered(orders):
+    with pytest.raises(OutOfStock) as e:
+        await orders.create_order("test", "u1", ["KR-7D-10GB", "JP-5D-3GB"])  # KR-7D-10GB санд байхгүй
+    assert e.value.available == {"KR-7D-10GB": 0}
+    with pytest.raises(OutOfStock) as e:
+        await orders.create_order("test", "u1", ["JP-5D-3GB"] * 3)  # 2 л үлдсэн
+    assert e.value.available == {"JP-5D-3GB": 2}
+    with pytest.raises(OutOfStock):
+        await orders.create_order("test", "u1", ["WIN11-HOME"])
+    await orders.create_order("test", "u1", ["JP-5D-3GB"] * 2)
+
+
+async def test_low_stock_is_reported_after_delivery(orders, qpay):
+    orders.low_stock_threshold = 1
+    first, _ = await orders.create_order("test", "u1", ["JP-5D-3GB", "TH-8D-15GB"])
+    qpay.mark_all_paid()
+    result = await orders.process_payment(first.id, DeliverySpy())
+    assert result.outcome == PaymentOutcome.DELIVERED
+    assert result.low_stock == {"JP-5D-3GB": 1, "TH-8D-15GB": 0}
+
+
 async def test_out_of_stock_recovers_after_restock(orders, qpay, db):
-    order, _ = await orders.create_order("test", "u1", ["KR-7D-10GB"])  # санд байхгүй багц
+    order, _ = await orders.create_order("test", "u1", ["KR-5D-1GBD"])
+    await take_stock(db, "KR-5D-1GBD")  # сүүлийн ширхгийг өөр хүн түрүүлж авав
     qpay.mark_all_paid()
     deliver = DeliverySpy()
 
@@ -62,7 +88,7 @@ async def test_out_of_stock_recovers_after_restock(orders, qpay, db):
     from esim_bot.db import EsimProfile
 
     async with db.session() as s, s.begin():
-        s.add(EsimProfile(package_sku="KR-7D-10GB", iccid="999", smdp_address="smdp.test", activation_code="X"))
+        s.add(EsimProfile(package_sku="KR-5D-1GBD", iccid="999", smdp_address="smdp.test", activation_code="X"))
 
     result = await orders.process_payment(order.id, deliver)
     assert result.outcome == PaymentOutcome.DELIVERED
@@ -116,7 +142,8 @@ async def test_bundle_order_one_invoice_two_esims(orders, qpay):
 async def test_bundle_waits_until_every_package_is_in_stock(orders, qpay, db):
     from esim_bot.db import EsimProfile
 
-    order, _ = await orders.create_order("test", "u1", ["CN-7D-5GB", "CN-3D-1GB"])  # CN-7D-5GB дууссан
+    order, _ = await orders.create_order("test", "u1", ["KR-5D-1GBD", "CN-3D-1GB"])
+    await take_stock(db, "KR-5D-1GBD")  # төлөхөөс өмнө KR дууссан
     qpay.mark_all_paid()
     deliver = DeliverySpy()
 
@@ -125,7 +152,7 @@ async def test_bundle_waits_until_every_package_is_in_stock(orders, qpay, db):
     assert [p.package_sku for p in await orders.items_for(order.id)] == ["CN-3D-1GB"]  # нөөцлөгдсөн
 
     async with db.session() as s, s.begin():
-        s.add(EsimProfile(package_sku="CN-7D-5GB", iccid="777", smdp_address="smdp.test", activation_code="Y"))
+        s.add(EsimProfile(package_sku="KR-5D-1GBD", iccid="777", smdp_address="smdp.test", activation_code="Y"))
 
     assert (await orders.process_payment(order.id, deliver)).outcome == PaymentOutcome.DELIVERED
     assert deliver.calls == [(order.id, ["777", "8986000000000000001"])]  # захиалгын дарааллаар
@@ -157,8 +184,9 @@ async def test_mixed_order_esim_and_license(orders, qpay):
     assert delivered == ["LicenseKey", "EsimProfile"]  # захиалгын дарааллаар
 
 
-async def test_license_out_of_stock(orders, qpay):
-    order, _ = await orders.create_order("test", "u1", ["WIN11-HOME"])  # санд байхгүй
+async def test_license_out_of_stock(orders, qpay, db):
+    order, _ = await orders.create_order("test", "u1", ["WIN11-PRO"])
+    await take_stock(db, "WIN11-PRO")
     qpay.mark_all_paid()
     result = await orders.process_payment(order.id, DeliverySpy())
     assert result.outcome == PaymentOutcome.OUT_OF_STOCK

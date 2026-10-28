@@ -10,6 +10,8 @@ from fastapi.templating import Jinja2Templates
 
 from ..catalog import LICENSE_CATEGORIES, Package, format_mnt
 from ..db import OrderStatus
+from ..delivery import out_of_stock_text
+from ..orders import OutOfStock
 from ..payments.fake import FakeQPay
 from ..payments.qpay import QPayError
 from . import listing
@@ -70,7 +72,9 @@ def _render(request: Request, name: str, status_code: int = 200, **context: Any)
 async def index(request: Request) -> HTMLResponse:
     catalog = _store(request).catalog
     tiles = [(c, packages) for c in catalog.countries if (packages := catalog.packages_covering(c.code))]
-    deal = min(catalog.packages, key=lambda p: p.price_mnt, default=None)
+    stock = await _store(request).stock(p.sku for p in catalog.packages)
+    # Нүүрний "...₮-өөс" үнэ, хямд багцын холбоос нөөцтэй багцаас (бүгд дууссан бол аль нэгээс)
+    deal = min(catalog.packages, key=lambda p: (not stock[p.sku], p.price_mnt), default=None)
     covered = len({code for p in catalog.packages for code in p.countries})
     license_groups = [
         (key, label, group)
@@ -92,18 +96,21 @@ async def index(request: Request) -> HTMLResponse:
 async def esim_list(request: Request) -> HTMLResponse:
     catalog = _store(request).catalog
     filters = listing.Filters.parse(catalog, request.query_params)
+    packages = listing.apply(catalog, filters, COUNTRY_NAMES)
+    stock = await _store(request).stock(p.sku for p in packages)
     return _render(
         request,
         "esim_list.html",
         filters=filters,
-        packages=listing.apply(catalog, filters, COUNTRY_NAMES),
+        packages=sorted(packages, key=lambda p: not stock[p.sku]),  # дууссаныг сүүлд
+        stock=stock,
         countries=catalog.countries,
         country=catalog.country(filters.country) if filters.country else None,
         listing=listing,
     )
 
 
-def _detail_context(request: Request, sku: str) -> dict[str, Any]:
+async def _detail_context(request: Request, sku: str) -> dict[str, Any]:
     catalog = _store(request).catalog
     package = catalog.package(sku)
     if package is None:
@@ -113,47 +120,57 @@ def _detail_context(request: Request, sku: str) -> dict[str, Any]:
         similar = [p for p in catalog.packages if p.region == package.region]
     else:  # ижил улсын бусад багц
         similar = [p for p in catalog.packages_for(package.country) if not p.region]
-    related = sorted((p for p in similar if p.sku != sku), key=lambda p: abs(p.price_mnt - package.price_mnt))[:4]
+    stock = await _store(request).stock([sku] + [p.sku for p in similar])
+    # Ойролцоо үнэтэй, нөөцтэй багцуудыг эхэнд санал болгоно
+    related = sorted(
+        (p for p in similar if p.sku != sku), key=lambda p: (not stock[p.sku], abs(p.price_mnt - package.price_mnt))
+    )[:4]
     return {
         "package": package,
         "country": country,
         "notes": country.notes if country and not package.region else "",
         "related": sorted(related, key=lambda p: p.price_mnt),
-        "max_quantity": MAX_QUANTITY,
+        "stock": stock,
+        "max_quantity": min(MAX_QUANTITY, stock[sku]),
     }
 
 
 @router.get("/esim/{sku}", response_class=HTMLResponse)
 async def esim_detail(request: Request, sku: str) -> HTMLResponse:
-    return _render(request, "esim_detail.html", **_detail_context(request, sku))
+    return _render(request, "esim_detail.html", **await _detail_context(request, sku))
 
 
 @router.get("/license", response_class=HTMLResponse)
 async def license_list(request: Request) -> HTMLResponse:
     catalog = _store(request).catalog
     filters = listing.LicenseFilters.parse(request.query_params)
+    licenses = listing.apply_licenses(catalog, filters)
+    stock = await _store(request).stock(lic.sku for lic in licenses)
     return _render(
         request,
         "license_list.html",
         filters=filters,
-        licenses=listing.apply_licenses(catalog, filters),
+        licenses=sorted(licenses, key=lambda lic: not stock[lic.sku]),
+        stock=stock,
         categories=[(key, label) for key, (label, _) in LICENSE_CATEGORIES.items() if any(lic.category == key for lic in catalog.licenses)],
         listing=listing,
     )
 
 
-def _license_context(request: Request, sku: str) -> dict[str, Any]:
+async def _license_context(request: Request, sku: str) -> dict[str, Any]:
     catalog = _store(request).catalog
     product = catalog.license(sku)
     if product is None:
         raise HTTPException(status_code=404)
     related = [lic for lic in catalog.licenses if lic.category == product.category and lic.sku != sku]
-    return {"license": product, "related": related[:4], "max_quantity": MAX_QUANTITY}
+    stock = await _store(request).stock([sku] + [lic.sku for lic in related])
+    related.sort(key=lambda lic: not stock[lic.sku])
+    return {"license": product, "related": related[:4], "stock": stock, "max_quantity": min(MAX_QUANTITY, stock[sku])}
 
 
 @router.get("/license/{sku}", response_class=HTMLResponse)
 async def license_detail(request: Request, sku: str) -> HTMLResponse:
-    return _render(request, "license_detail.html", **_license_context(request, sku))
+    return _render(request, "license_detail.html", **await _license_context(request, sku))
 
 
 @router.get("/faq", response_class=HTMLResponse)
@@ -185,21 +202,24 @@ async def checkout_submit(
     quantity = min(max(quantity, 1), MAX_QUANTITY)
     email = email.strip()
 
-    def form_error(status_code: int, error: str) -> HTMLResponse:
+    async def form_error(status_code: int, error: str) -> HTMLResponse:
         if isinstance(product, Package):
-            template, context = "esim_detail.html", _detail_context(request, sku)
+            template, context = "esim_detail.html", await _detail_context(request, sku)
         else:
-            template, context = "license_detail.html", _license_context(request, sku)
-        return _render(request, template, status_code, email=email, phone=phone, quantity=quantity, error=error, **context)
+            template, context = "license_detail.html", await _license_context(request, sku)
+        qty = max(min(quantity, context["max_quantity"]), 1)
+        return _render(request, template, status_code, email=email, phone=phone, quantity=qty, error=error, **context)
 
     if not is_valid_email(email):
-        return form_error(400, "И-мэйл хаяг буруу байна.")
+        return await form_error(400, "И-мэйл хаяг буруу байна.")
     if not (normalized_phone := normalize_phone(phone)):
-        return form_error(400, "Утасны дугаар буруу байна. Жишээ нь 99112233.")
+        return await form_error(400, "Утасны дугаар буруу байна. Жишээ нь 99112233.")
     try:
         order = await _store(request).checkout(sku, email, normalized_phone, quantity)
+    except OutOfStock as e:
+        return await form_error(409, out_of_stock_text(_store(request).catalog, e.available))
     except QPayError:
-        return form_error(503, "Төлбөрийн систем түр ажиллахгүй байна. Хэсэг хугацааны дараа дахин оролдоно уу.")
+        return await form_error(503, "Төлбөрийн систем түр ажиллахгүй байна. Хэсэг хугацааны дараа дахин оролдоно уу.")
     return RedirectResponse(_store(request).order_path(order), status_code=303)
 
 

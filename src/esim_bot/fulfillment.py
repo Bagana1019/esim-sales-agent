@@ -1,4 +1,5 @@
 from collections import Counter
+from collections.abc import Iterable
 from typing import Protocol
 
 from sqlalchemy import select, update
@@ -6,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .catalog import Catalog
 from .db import Database, EsimProfile, LicenseKey, Order, utcnow
+from .inventory import stock_by_sku
 
 # Захиалгын нэг багцад олгогдох зүйл: eSIM профайл эсвэл лицензийн түлхүүр
 Item = EsimProfile | LicenseKey
@@ -38,6 +40,10 @@ class FulfillmentProvider(Protocol):
         """
         ...
 
+    async def available(self, skus: Iterable[str]) -> dict[str, int]:
+        """Одоо олгож болох тоо, sku тус бүрээр (нөөцгүй бол 0)."""
+        ...
+
 
 class PoolProvider:
     """Урьдчилан импортолсон сангаас олгоно: eSIM — esim_profiles, лиценз — license_keys.
@@ -49,6 +55,10 @@ class PoolProvider:
     def __init__(self, db: Database, catalog: Catalog):
         self.db = db
         self.catalog = catalog
+
+    async def available(self, skus: Iterable[str]) -> dict[str, int]:
+        stock = await stock_by_sku(self.db)
+        return {sku: stock.get(sku, 0) for sku in skus}
 
     def _model(self, sku: str) -> type[Item]:
         return LicenseKey if self.catalog.license(sku) else EsimProfile

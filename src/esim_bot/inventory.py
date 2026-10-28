@@ -1,5 +1,5 @@
 import csv
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -11,18 +11,45 @@ REQUIRED_COLUMNS = {"package_sku", "iccid", "smdp_address", "activation_code"}
 LICENSE_COLUMNS = {"package_sku", "product_key"}
 
 
-def _read_csv(csv_path: str | Path, columns: set[str]) -> list[dict[str, str]]:
+def _read_csv(
+    csv_path: str | Path, columns: set[str], unique: str, known_skus: Collection[str] | None
+) -> list[dict[str, str]]:
+    """CSV-г уншиж шалгана. Алдаатай мөр байвал юу ч оруулахгүйгээр бүх алдааг нэг дор ValueError болгоно."""
+    rows: list[dict[str, str]] = []
+    errors: list[str] = []
+    seen: set[str] = set()
     with open(csv_path, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         missing = columns - set(reader.fieldnames or [])
         if missing:
             raise ValueError(f"CSV-д дутуу багана: {', '.join(sorted(missing))}")
-        return [{k: row[k].strip() for k in columns} for row in reader]
+        for row in reader:
+            values = {k: (row[k] or "").strip() for k in columns}
+            if not any(values.values()):
+                continue  # Excel-ийн хоосон мөр
+            line = f"{reader.line_num}-р мөр"
+            if empty := sorted(k for k, v in values.items() if not v):
+                errors.append(f"{line}: {', '.join(empty)} хоосон")
+            elif known_skus is not None and values["package_sku"] not in known_skus:
+                errors.append(f"{line}: {values['package_sku']} гэсэн sku каталогт (data/catalog.yaml) байхгүй")
+            elif values[unique] in seen:
+                errors.append(f"{line}: {unique} {values[unique]} файлд давхардсан")
+            else:
+                seen.add(values[unique])
+                rows.append(values)
+    if errors:
+        more = [f"... бас {len(errors) - 10} алдаа"] if len(errors) > 10 else []
+        raise ValueError("\n".join(["CSV алдаатай тул юу ч оруулсангүй:", *errors[:10], *more]))
+    return rows
 
 
-async def import_esims(db: Database, csv_path: str | Path) -> int:
-    """CSV-ээс eSIM санд нэмнэ. Аль хэдийн байгаа ICCID-ийг алгасна. Нэмэгдсэн тоог буцаана."""
-    rows = _read_csv(csv_path, REQUIRED_COLUMNS)
+async def import_esims(db: Database, csv_path: str | Path, known_skus: Collection[str] | None = None) -> int:
+    """CSV-ээс eSIM санд нэмнэ. Аль хэдийн байгаа ICCID-ийг алгасна. Нэмэгдсэн тоог буцаана.
+
+    known_skus өгвөл каталогт байхгүй sku-тай мөрийг алдаа гэж үзнэ (үсгийн алдаатай sku-тай нөөц
+    хэзээ ч зарагдахгүй үлдэхээс сэргийлнэ).
+    """
+    rows = _read_csv(csv_path, REQUIRED_COLUMNS, "iccid", known_skus)
 
     async with db.session() as s, s.begin():
         existing = set(await s.scalars(select(EsimProfile.iccid)))
@@ -31,9 +58,9 @@ async def import_esims(db: Database, csv_path: str | Path) -> int:
     return len(new)
 
 
-async def import_licenses(db: Database, csv_path: str | Path) -> int:
+async def import_licenses(db: Database, csv_path: str | Path, known_skus: Collection[str] | None = None) -> int:
     """CSV-ээс (package_sku, product_key) лицензийн санд нэмнэ. Давхардсан түлхүүрийг алгасна."""
-    rows = _read_csv(csv_path, LICENSE_COLUMNS)
+    rows = _read_csv(csv_path, LICENSE_COLUMNS, "product_key", known_skus)
     async with db.session() as s, s.begin():
         existing = set(await s.scalars(select(LicenseKey.product_key)))
         new = [LicenseKey(**r) for r in rows if r["product_key"] not in existing]
@@ -73,9 +100,9 @@ async def seed_demo_stock(db: Database, catalog: Catalog) -> None:
     """
     added = 0
     if not await stock_by_sku(db, EsimProfile):
-        added += await import_esims(db, "data/esims.example.csv")
+        added += await import_esims(db, "data/esims.example.csv", {p.sku for p in catalog.packages})
     if not await stock_by_sku(db, LicenseKey):
-        added += await import_licenses(db, "data/licenses.example.csv")
+        added += await import_licenses(db, "data/licenses.example.csv", {lic.sku for lic in catalog.licenses})
 
     stocked = await stock_by_sku(db)
     async with db.session() as s, s.begin():

@@ -16,6 +16,24 @@ def qr_png(data: str) -> bytes:
 DEFAULT_ACTIVATION = "Settings → System → Activation → Change product key → түлхүүрээ оруулна."
 
 
+def out_of_stock_text(catalog: Catalog, available: dict[str, int]) -> str:
+    """Захиалах үед нөөц хүрэхгүй бол харилцагчид харуулах текст (available: sku → үлдсэн тоо)."""
+    parts = [
+        f"{product_label(catalog, sku)}: " + (f"зөвхөн {count} ширхэг үлдсэн" if count else "түр дууссан")
+        for sku, count in available.items()
+    ]
+    return "Уучлаарай, " + "; ".join(parts) + "."
+
+
+def low_stock_text(catalog: Catalog, low_stock: dict[str, int]) -> str:
+    """Борлуулалтын дараа нөөц багассан тухай админд очих мэдэгдэл."""
+    lines = [
+        f"• {sku} ({product_label(catalog, sku)}): " + (f"{count} үлдлээ" if count else "ДУУСЛАА, зарагдахгүй")
+        for sku, count in low_stock.items()
+    ]
+    return "📉 Нөөц багасаж байна:\n" + "\n".join(lines) + "\nНэмэх: uv run esim import-esims файл.csv (лиценз: import-licenses)"
+
+
 def product_label(catalog: Catalog, sku: str) -> str:
     if lic := catalog.license(sku):
         return f"{lic.emoji} {lic.name}"

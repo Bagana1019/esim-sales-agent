@@ -139,10 +139,31 @@ def test_checkout_validates_input(client):
 
 
 def test_checkout_quantity_makes_one_order_with_several_esims(client, outbox):
-    resp = client.post("/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "phone": "99112233", "quantity": "9"}, follow_redirects=False)
+    # Туршилтын горимд багц бүрд 2 eSIM байна
+    resp = client.post("/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "phone": "99112233", "quantity": "2"}, follow_redirects=False)
     page = client.get(resp.headers["location"]).text
     price = catalog_of(client).package("JP-7D-5GB").price_mnt
-    assert page.count("Япон - 7 хоног / Нийт 5GB") == 5 and f"{price * 5:,}₮" in page  # дээд тал нь 5
+    assert page.count("Япон - 7 хоног / Нийт 5GB") == 2 and f"{price * 2:,}₮" in page
+
+    too_many = client.post("/checkout", data={"sku": "JP-5D-3GB", "email": "bat@example.com", "phone": "99112233", "quantity": "9"})
+    assert too_many.status_code == 409 and "зөвхөн 2 ширхэг үлдсэн" in too_many.text
+    assert 'max="2"' in too_many.text and "Сүүлийн 2 ширхэг" in too_many.text
+
+
+def test_sold_out_package_is_shown_but_cannot_be_bought(client):
+    resp = client.post("/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "phone": "99112233", "quantity": "2"}, follow_redirects=False)
+    order_id, token = re.match(r"/order/(\w+)\?t=(\w+)", resp.headers["location"]).groups()
+    client.post(f"/dev/pay/{order_id}?t={token}")
+    assert client.get(f"/api/orders/{order_id}/status?t={token}").json() == {"status": "delivered"}
+
+    detail = client.get("/esim/JP-7D-5GB").text
+    assert "Түр дууссан" in detail and "disabled" in detail and 'name="email"' not in detail
+    listing = client.get("/esim?country=JP").text
+    assert re.findall(r'href="/esim/([\w-]+)"', listing)[-1] == "JP-7D-5GB"  # дууссан нь сүүлд
+    assert '<span class="badge gray">Түр дууссан</span>' in listing
+
+    again = client.post("/checkout", data={"sku": "JP-7D-5GB", "email": "bat@example.com", "phone": "99112233"})
+    assert again.status_code == 409 and "Түр дууссан. Удахгүй нэмэгдэнэ" in again.text
 
 
 def test_esim_purchase_end_to_end(client, outbox):

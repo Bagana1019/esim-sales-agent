@@ -2,6 +2,7 @@ import json
 
 import httpx2
 import openai
+import pytest
 from sqlalchemy import select
 
 from esim_bot.agent.loop import BUSY_REPLY, DISABLED_REPLY, SalesAgent
@@ -163,14 +164,26 @@ def test_system_prompt_contains_catalog(catalog):
 
 async def test_bundle_payment_is_one_invoice(agent, bot, channel, fake_llm):
     fake_llm.responses = [
-        tool_call("create_payment", {"skus": ["CN-7D-5GB", "CN-3D-1GB"]}),
-        text("Нийт 57,000₮-ийн QR илгээлээ."),
+        tool_call("create_payment", {"skus": ["JP-5D-3GB", "CN-3D-1GB"]}),
+        text("Нийт 40,000₮-ийн QR илгээлээ."),
     ]
 
     await agent.reply(ToolContext(bot, channel, "u1"), "Avay")
 
     photos = [m for m in channel.sent if m["kind"] == "photo"]
-    assert len(photos) == 1 and "Төлөх дүн: 57,000₮" in photos[0]["text"]
+    assert len(photos) == 1 and "Төлөх дүн: 40,000₮" in photos[0]["text"]
+
+
+async def test_agent_sees_stock_and_cannot_sell_sold_out(agent, bot, channel, fake_llm):
+    from esim_bot.agent.tools import ToolError, run_tool
+
+    ctx = ToolContext(bot, channel, "u1")
+    packages = json.loads(await run_tool(ctx, "list_packages", {"country_code": "CN"}))
+    assert {p["sku"]: p["in_stock"] for p in packages} == {"CN-3D-1GB": True, "CN-5D-3GB": False, "CN-7D-5GB": False}
+
+    with pytest.raises(ToolError, match="түр дууссан"):
+        await run_tool(ctx, "create_payment", {"skus": ["CN-7D-5GB"]})
+    assert not [m for m in channel.sent if m["kind"] == "photo"]
 
 
 def test_fix_typos():
