@@ -43,8 +43,27 @@ async def test_cannot_check_someone_elses_order(bot, channel):
     assert channel.sent[-1] == {"kind": "text", "chat_id": "intruder", "text": "Захиалга олдсонгүй.", "buttons": []}
 
 
-async def test_out_of_stock_notifies_admin_once(bot, channel, qpay):
-    order = await bot.start_checkout(channel, "u1", ["CN-7D-5GB"])
+async def test_sold_out_package_is_not_invoiced(bot, channel):
+    await bot.handle_button(channel, "u1", "p:CN-7D-5GB")  # санд байхгүй
+    assert all(m["kind"] == "text" for m in channel.sent)
+    assert "Хятад - 7 хоног / Нийт 5GB: түр дууссан" in channel.sent[0]["text"]
+    assert "c:CN" in channel.button_data()  # өөр багц сонгуулна
+
+
+async def test_low_stock_notifies_admin(bot, channel, qpay):
+    bot.orders.low_stock_threshold = 3
+    order = await bot.start_checkout(channel, "u1", ["CN-3D-1GB"])
+    qpay.mark_all_paid()
+    await bot.handle_button(channel, "u1", f"chk:{order.id}")
+    [admin] = [m for m in channel.sent if m["chat_id"] == "admin"]
+    assert "CN-3D-1GB" in admin["text"] and "ДУУСЛАА" in admin["text"]
+
+
+async def test_out_of_stock_notifies_admin_once(bot, channel, qpay, db):
+    from .conftest import take_stock
+
+    order = await bot.start_checkout(channel, "u1", ["CN-3D-1GB"])
+    await take_stock(db, "CN-3D-1GB")  # сүүлийн ширхгийг өөр хүн түрүүлж авав
     qpay.mark_all_paid()
     channel.sent.clear()
 
@@ -88,9 +107,12 @@ async def test_bundle_checkout_and_delivery(bot, channel, qpay):
 
 async def test_license_button_flow(bot, channel, qpay):
     await bot.handle_button(channel, "u1", "lic")
+    # Нөөцтэй нь эхэнд, дууссан нь тэмдэглэгээтэй
     assert channel.button_data() == [
-        "p:WIN11-HOME", "p:WIN11-PRO", "p:WIN11-PRO-WS", "p:WINSRV25-STD", "p:WINSRV25-DC", "menu",
+        "p:WIN11-PRO", "p:WIN11-HOME", "p:WIN11-PRO-WS", "p:WINSRV25-STD", "p:WINSRV25-DC", "menu",
     ]
+    labels = [row[0].text for row in channel.sent[-1]["buttons"]]
+    assert "түр дууссан" not in labels[0] and labels[1].endswith("· түр дууссан")
 
     await bot.handle_button(channel, "u1", "p:WIN11-PRO")
     invoice = channel.sent[-1]

@@ -111,8 +111,25 @@ async def orders(db, catalog, qpay, tmp_path) -> OrderService:
     keys.write_text("package_sku,product_key\nWIN11-PRO,AAAAA-BBBBB-CCCCC-DDDDD-00001\n", encoding="utf-8")
     await import_licenses(db, keys)
     return OrderService(
-        db, catalog, qpay, PoolProvider(db, catalog), public_base_url="https://bot.example", callback_secret="secret"
+        db,
+        catalog,
+        qpay,
+        PoolProvider(db, catalog),
+        public_base_url="https://bot.example",
+        callback_secret="secret",
+        low_stock_threshold=-1,  # нөөц багассан мэдэгдэл бусад тестийн мессежтэй холилдохгүй (тусгай тест асаана)
     )
+
+
+async def take_stock(db, sku: str) -> None:
+    """Өөр харилцагч сүүлийн нөөцийг түрүүлж худалдаж авсныг дуурайна."""
+    from sqlalchemy import update
+
+    from esim_bot.db import EsimProfile, LicenseKey
+
+    async with db.session() as s, s.begin():
+        for model in (EsimProfile, LicenseKey):
+            await s.execute(update(model).where(model.package_sku == sku, model.order_id.is_(None)).values(order_id="other"))
 
 
 @pytest.fixture

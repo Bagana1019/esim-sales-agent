@@ -5,3 +5,6 @@ __pycache__/
 *.db
 out/
 .pytest_cache/
+# Жинхэнэ eSIM/лицензийн CSV идэвхжүүлэх код агуулдаг — git-д оруулахгүй
+*.csv
+!data/*.example.csv

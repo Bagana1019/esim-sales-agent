@@ -2,9 +2,9 @@ import asyncio
 import hashlib
 import hmac
 import logging
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from uuid import uuid4
 
@@ -32,6 +32,15 @@ class PaymentResult:
     outcome: PaymentOutcome
     order: Order
     newly_failed: bool = False  # NEEDS_ATTENTION төлөвт анх удаа орсон эсэх
+    low_stock: dict[str, int] = field(default_factory=dict)  # хүргэсний дараа нөөц багассан sku → үлдсэн тоо
+
+
+class OutOfStock(Exception):
+    """Захиалах тоонд нөөц хүрэхгүй. available: дутсан sku → одоо байгаа тоо."""
+
+    def __init__(self, available: dict[str, int]):
+        super().__init__(f"Нөөц хүрэхгүй: {available}")
+        self.available = available
 
 
 class OrderService:
@@ -44,6 +53,7 @@ class OrderService:
         *,
         public_base_url: str,
         callback_secret: str,
+        low_stock_threshold: int = 3,
     ):
         self.db = db
         self.catalog = catalog
@@ -51,6 +61,7 @@ class OrderService:
         self.fulfillment = fulfillment
         self.public_base_url = public_base_url.rstrip("/")
         self.callback_secret = callback_secret.encode()
+        self.low_stock_threshold = low_stock_threshold
         # Нэг процесс доторх давхар боловсруулалтаас сэргийлнэ (callback + "Төлбөр шалгах" зэрэг ирэх)
         self._locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
@@ -80,6 +91,12 @@ class OrderService:
         products = [self.catalog.product(sku) for sku in skus]
         if not products or None in products:
             raise ValueError(f"Үл мэдэгдэх бүтээгдэхүүн: {skus}")
+        # Нөөцгүй бол төлбөр авахгүй (нөөцийг захиалгад түгжихгүй — сүүлийн ширхгийг зэрэг төлбөл
+        # нэг нь NEEDS_ATTENTION болж админд мэдэгдэнэ)
+        wanted = Counter(skus)
+        available = await self.fulfillment.available(wanted)
+        if short := {sku: available[sku] for sku, count in wanted.items() if available[sku] < count}:
+            raise OutOfStock(short)
         order = Order(
             id=uuid4().hex,
             channel=channel,
@@ -171,7 +188,9 @@ class OrderService:
 
             await deliver(order, items)
             order = await self._update(order_id, status=OrderStatus.DELIVERED, delivered_at=utcnow())
-            return PaymentResult(PaymentOutcome.DELIVERED, order)
+            remaining = await self.fulfillment.available(set(order.package_skus))
+            low = {sku: count for sku, count in sorted(remaining.items()) if count <= self.low_stock_threshold}
+            return PaymentResult(PaymentOutcome.DELIVERED, order, low_stock=low)
 
     async def _update(self, order_id: str, **values: object) -> Order:
         async with self.db.session() as s, s.begin():

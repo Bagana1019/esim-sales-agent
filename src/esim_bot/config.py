@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     shop_name: str = "NomadData"
     # Локал туршилт: QPay-ийн оронд хуурамч төлбөр, туршилтын eSIM/лиценз автоматаар санд орно
     fake_payments: bool = False
+    # Борлуулалтын дараа нөөц энэ тоо буюу түүнээс доош болвол админд мэдэгдэнэ
+    low_stock_threshold: int = 3
 
     # И-мэйл (вэб захиалгын хүргэлт): Mailgun, үгүй бол SMTP. Аль нь ч тохируулаагүй бол илгээхгүй,
     # email_outbox_dir-д .eml файл болгон хадгална

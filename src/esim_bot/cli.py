@@ -16,6 +16,7 @@ from pathlib import Path
 
 import httpx
 
+from .catalog import Catalog
 from .channels.base import Button, Keyboard
 from .channels.telegram import dispatch, parse_update
 from .config import get_settings, missing_token_hint
@@ -140,23 +141,35 @@ async def poll(fake_payments: bool) -> None:
 
 
 async def import_cmd(path: str, licenses: bool = False) -> None:
-    db = Database(get_settings().database_url)
+    settings = get_settings()
+    catalog = Catalog.load(settings.catalog_path)
+    db = Database(settings.database_url)
     await db.create_all()
-    if licenses:
-        print(f"{await import_licenses(db, path)} лиценз нэмэгдлээ")
-    else:
-        print(f"{await import_esims(db, path)} eSIM нэмэгдлээ")
+    try:
+        if licenses:
+            print(f"{await import_licenses(db, path, {lic.sku for lic in catalog.licenses})} лиценз нэмэгдлээ")
+        else:
+            print(f"{await import_esims(db, path, {p.sku for p in catalog.packages})} eSIM нэмэгдлээ")
+    except (OSError, ValueError) as e:
+        await db.dispose()
+        raise SystemExit(str(e)) from e
     await stock_cmd(db)
 
 
 async def stock_cmd(db: Database | None = None) -> None:
-    db = db or Database(get_settings().database_url)
+    settings = get_settings()
+    catalog = Catalog.load(settings.catalog_path)
+    db = db or Database(settings.database_url)
     await db.create_all()
     stock = await stock_by_sku(db)
-    for sku, count in sorted(stock.items()):
-        print(f"{sku:20} {count}")
-    if not stock:
-        print("Сан хоосон байна")
+    skus = [p.sku for p in catalog.packages] + [lic.sku for lic in catalog.licenses]
+    for sku in skus:
+        count = stock.get(sku, 0)
+        print(f"{sku:20} {count:>4}" + ("  ← дууссан, сайтад зарагдахгүй" if not count else ""))
+    if orphans := sorted(set(stock) - set(skus)):
+        print(f"Каталогт байхгүй sku-тай нөөц (зарагдахгүй): {', '.join(orphans)}")
+    sold_out = sum(1 for sku in skus if not stock.get(sku))
+    print(f"\nНөөцтэй: {len(skus) - sold_out}, дууссан: {sold_out} бүтээгдэхүүн")
     await db.dispose()
 
 
@@ -200,7 +213,7 @@ def main() -> None:
     p_import.add_argument("path")
     p_import_lic = sub.add_parser("import-licenses", help="CSV-ээс (package_sku,product_key) лиценз санд нэмэх")
     p_import_lic.add_argument("path")
-    sub.add_parser("stock", help="eSIM үлдэгдэл")
+    sub.add_parser("stock", help="eSIM, лицензийн үлдэгдэл (дууссаныг тэмдэглэнэ)")
     sub.add_parser("set-webhook", help="Telegram webhook бүртгэх")
     p_mail = sub.add_parser("test-email", help="и-мэйлийн тохиргоог (Mailgun/SMTP) шалгах")
     p_mail.add_argument("to", help="хүлээн авах хаяг")

@@ -54,15 +54,15 @@
                 "Лицензийн түлхүүр", max_quantity, quantity or 1, email, phone, error) }}
     </aside>
   </div>
-  {{ mbar(license.name, license.price_mnt) }}
+  {{ mbar(license.name, license.price_mnt, max_quantity < 1) }}
 
   {% if related %}
   <section class="section">
     <div class="section-head"><h2 class="sm">Ижил ангиллын бусад лиценз</h2><a href="/license?category={{ license.category }}">Бүгдийг харах →</a></div>
     <div class="pgrid related">
       {% for lic in related %}
-      <a class="tile pcard" href="/license/{{ lic.sku }}">
-        <span class="pcard-top"><span class="pflag plain">{{ icon(cat.icon) }}</span><span class="badge">{{ lic.term }}</span><span class="pprice">{{ format_mnt(lic.price_mnt) }}</span></span>
+      <a class="tile pcard{% if not stock[lic.sku] %} soldout{% endif %}" href="/license/{{ lic.sku }}">
+        <span class="pcard-top"><span class="pflag plain">{{ icon(cat.icon) }}</span><span class="badge{% if not stock[lic.sku] %} gray{% endif %}">{{ lic.term if stock[lic.sku] else "Түр дууссан" }}</span><span class="pprice">{{ format_mnt(lic.price_mnt) }}</span></span>
         <span class="pcard-title">{{ lic.name }}</span>
       </a>
       {% endfor %}

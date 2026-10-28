@@ -117,7 +117,7 @@
             <td class="mono">{{ p.data }}</td>
             <td class="mono num-col">{{ format_mnt(p.price_mnt) }}</td>
             <td class="mono num-col muted">≈{{ format_mnt(per_day) }}</td>
-            <td><a class="btn pill sm" href="/esim/{{ p.sku }}">Харах</a></td>
+            <td>{% if stock[p.sku] %}<a class="btn pill sm" href="/esim/{{ p.sku }}">Харах</a>{% else %}<a class="btn pill sm secondary" href="/esim/{{ p.sku }}">Түр дууссан</a>{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -126,10 +126,11 @@
     {% else %}
     <div class="pgrid">
       {% for p in packages %}
-      <a class="tile pcard reveal" style="--d:{{ loop.index0 % 4 }}" href="/esim/{{ p.sku }}">
+      <a class="tile pcard reveal{% if not stock[p.sku] %} soldout{% endif %}" style="--d:{{ loop.index0 % 4 }}" href="/esim/{{ p.sku }}">
         <span class="pcard-top">
           <span class="pflag">{{ pkg_flag(p) }}</span>
-          <span class="badge{% if p.region %} blue{% endif %}">{{ "Олон улс · " ~ p.countries|length if p.region else ("Өдөр бүр" if p.daily else "Нэг улс") }}</span>
+          {% if not stock[p.sku] %}<span class="badge gray">Түр дууссан</span>
+          {% else %}<span class="badge{% if p.region %} blue{% endif %}">{{ "Олон улс · " ~ p.countries|length if p.region else ("Өдөр бүр" if p.daily else "Нэг улс") }}</span>{% endif %}
           <span class="pprice">{{ format_mnt(p.price_mnt) }}</span>
         </span>
         <span class="pcard-title">{{ pkg_name(p) }} · {{ p.data|replace("Нийт ", "") }} · {{ p.days }} хоног</span>

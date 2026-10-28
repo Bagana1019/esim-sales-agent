@@ -78,6 +78,7 @@ async def build_services(
         PoolProvider(db, catalog),
         public_base_url=settings.public_base_url,
         callback_secret=settings.callback_secret,
+        low_stock_threshold=settings.low_stock_threshold,
     )
     llm = AsyncOpenAI(api_key=settings.groq_api_key, base_url=settings.groq_base_url) if settings.groq_api_key else None
     agent = SalesAgent(
