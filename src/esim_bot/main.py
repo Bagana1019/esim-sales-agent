@@ -3,6 +3,7 @@
 Ажиллуулах: uv run uvicorn esim_bot.main:app --port 8000
 """
 
+import asyncio
 import hmac
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -13,8 +14,9 @@ from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
+from .backup import backup_database
 from .channels.telegram import dispatch, parse_update
-from .config import get_settings
+from .config import Settings, get_settings
 from .payments.fake import FakeQPay
 from .services import ConfigError, Services, build_services
 from .web.routes import STATIC_DIR
@@ -44,8 +46,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     elif "localhost" in settings.public_base_url or "127.0.0.1" in settings.public_base_url:
         log.warning("PUBLIC_BASE_URL локал тул QPay callback ирэхгүй — төлбөрийг захиалгын хуудас нээлттэй үед шалгана")
     log.info("И-мэйл: %s", app.state.services.web.mailer)
+    if settings.live_payments and (missing := settings.missing_company_info()):
+        log.warning("Үйлчилгээний нөхцөл, нууцлалын хуудсанд хоосон харагдана — .env-д бичнэ үү: %s", ", ".join(missing))
+    backups = None
+    if settings.live_payments and settings.backup_interval_hours > 0:
+        backups = asyncio.create_task(_backup_loop(settings, app.state.services))
     yield
+    if backups:
+        backups.cancel()
     await app.state.services.aclose()
+
+
+async def _backup_loop(settings: Settings, services: Services) -> None:
+    """Асахдаа, дараа нь BACKUP_INTERVAL_HOURS тутам сангийн нөөц хуулбар хийнэ. Амжилтгүй бол админд мэдэгдэнэ."""
+    while True:
+        try:
+            info = await asyncio.to_thread(
+                backup_database, settings.database_url, settings.backup_dir, settings.backup_keep
+            )
+            log.info("Нөөц хуулбар: %s (%d захиалга)", info.path, info.orders)
+        except Exception as e:
+            log.exception("Нөөц хуулбар хийж чадсангүй")
+            await services.bot.notify_admin(f"⚠️ Өгөгдлийн сангийн нөөц хуулбар хийж чадсангүй: {e}")
+        await asyncio.sleep(settings.backup_interval_hours * 3600)
 
 
 app = FastAPI(title="NomadData", lifespan=lifespan)

@@ -474,6 +474,20 @@ pre.steps { white-space: pre-wrap; font-family: inherit; background: var(--soft)
 .site-footer a:not(.logo):hover { color: #fff; }
 .footer-bottom { border-top: 1px solid rgba(255, 255, 255, .08); padding: 18px 0 28px; text-align: center; font-size: 13px; }
 @media (min-width: 1024px) { .footer-grid { grid-template-columns: 2fr 1fr 1fr 1fr; } .footer-brand { grid-column: auto; } }
+.footer-contact { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+
+/* Хууль эрх зүйн хуудас */
+.legal { max-width: 52rem; line-height: 1.7; }
+.legal h2 { font-size: 18px; margin: 28px 0 8px; }
+.legal h2:first-of-type { margin-top: 20px; }
+.legal p { margin: 0 0 12px; }
+.legal ul, .legal ol { margin: 0 0 12px; padding-left: 22px; display: grid; gap: 6px; }
+.legal mark { background: #FEF3C7; color: #92400E; padding: 0 4px; border-radius: 4px; font-family: var(--font-mono); font-size: .9em; }
+.legal-contact { list-style: none; padding: 0 !important; gap: 0 !important; }
+.legal-contact li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.legal-contact span { color: var(--muted); }
+.legal-contact b { text-align: right; overflow-wrap: anywhere; }
+.consent { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); text-align: center; }
 
 /* Гүйлгэхэд гарч ирэх хөдөлгөөн — JS ажиллаагүй үед агуулга шууд харагдана */
 /* transform биш translate — картын 3D хазайлт (transform)-тай зөрчилдөхгүй */
@@ -521,7 +535,7 @@ pre.steps { white-space: pre-wrap; font-family: inherit; background: var(--soft)
 }
 .opt span img { width: 18px; height: 18px; border-radius: 50%; }
 .opt span:hover { border-color: rgba(16, 185, 129, .5); }
-.opt input:checked + span { background: var(--green-soft); color: var(--green-ink); border-color: var(--color-signal-green); font-weight: 600; }
+.opt input:checked + span, .opt[aria-current] span { background: var(--green-soft); color: var(--green-ink); border-color: var(--color-signal-green); font-weight: 600; }
 .opt input:focus-visible + span { outline: 3px solid rgba(16, 185, 129, .55); outline-offset: 2px; }
 .factions { display: flex; gap: 8px; }
 .js .factions [data-nojs] { display: none; }

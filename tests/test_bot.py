@@ -10,7 +10,7 @@ async def test_button_flow_to_delivery(bot, channel, qpay):
     invoice_msg = channel.sent[-1]
     assert invoice_msg["kind"] == "photo"
     assert invoice_msg["photo"].startswith(b"\x89PNG")
-    assert "25,000₮" in invoice_msg["text"]
+    assert "25,000₮" in invoice_msg["text"] and "https://bot.example/terms" in invoice_msg["text"]
     [check] = channel.button_data()
     assert check.startswith("chk:")
 

@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./esim.db"
     catalog_path: str = "data/catalog.yaml"
     shop_name: str = "NomadData"
+    # Хууль эрх зүйн хуудас (/terms, /privacy, /refund), footer-т харагдах байгууллагын мэдээлэл
+    company_name: str = ""  # жишээ нь "Номад Дата ХХК"
+    company_register: str = ""  # улсын бүртгэлийн дугаар
+    company_address: str = ""
+    support_email: str = ""
+    support_phone: str = ""
     # Локал туршилт: QPay-ийн оронд хуурамч төлбөр, туршилтын eSIM/лиценз автоматаар санд орно
     fake_payments: bool = False
     # Борлуулалтын дараа нөөц энэ тоо буюу түүнээс доош болвол админд мэдэгдэнэ
@@ -61,13 +67,24 @@ class Settings(BaseSettings):
     qpay_invoice_code: str = "TEST_INVOICE"
     callback_secret: str = "change-me"
 
+    # Нөөц хуулбар (uv run esim backup). Жинхэнэ QPay-тэй ажиллахад сервер BACKUP_INTERVAL_HOURS тутам
+    # өөрөө хийнэ (0 бол унтраана). Хуулбарт хувийн мэдээлэл байгаа тул хавтсыг нууцаар хадгална
+    backup_dir: str = "backups"
+    backup_keep: int = 30
+    backup_interval_hours: float = 24
+
     @property
     def qpay_sandbox(self) -> bool:
         return "sandbox" in self.qpay_base_url
 
+    @property
+    def live_payments(self) -> bool:
+        """Жинхэнэ мөнгө авч байгаа эсэх (хуурамч төлбөр, QPay sandbox биш)."""
+        return not self.fake_payments and not self.qpay_sandbox
+
     def production_errors(self) -> list[str]:
         """Жинхэнэ QPay-д (sandbox биш) асахаас өмнө заавал засах тохиргоо."""
-        if self.fake_payments or self.qpay_sandbox:
+        if not self.live_payments:
             return []
         errors = []
         if self.callback_secret == "change-me" or len(self.callback_secret) < 24:
@@ -79,6 +96,11 @@ class Settings(BaseSettings):
         if "TEST_" in self.qpay_client_id + self.qpay_invoice_code:
             errors.append("QPAY_CLIENT_ID, QPAY_CLIENT_SECRET, QPAY_INVOICE_CODE-д QPay-ээс авсан утгаа бичнэ")
         return errors
+
+    def missing_company_info(self) -> list[str]:
+        """Хууль эрх зүйн хуудсанд хоосон харагдах талбарууд (.env-ийн нэрээр)."""
+        fields = ("company_name", "company_register", "company_address", "support_email", "support_phone")
+        return [name.upper() for name in fields if not getattr(self, name).strip()]
 
 
 def missing_token_hint(name: str) -> str:

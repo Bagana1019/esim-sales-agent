@@ -58,6 +58,10 @@
       <div class="footer-brand">
         {{ logo() }}
         <p>Монгол аялагчдад зориулсан eSIM: роуминг төлбөргүй, сим карт солих шаардлагагүй. QPay-ээр төлөөд 1 минутад холбогдоно.</p>
+        {% if company.email or company.phone %}<p class="footer-contact">
+          {% if company.phone %}<a href="tel:{{ company.phone|replace(' ', '') }}">{{ company.phone }}</a>{% endif %}
+          {% if company.email %}<a href="mailto:{{ company.email }}">{{ company.email }}</a>{% endif %}
+        </p>{% endif %}
       </div>
       <div>
         <p class="footer-title">Дэлгүүр</p>
@@ -68,11 +72,11 @@
         <ul><li><a href="/check">Захиалга шалгах</a></li><li><a href="/install">Сим суулгах заавар</a></li><li><a href="/faq">Түгээмэл асуулт</a></li></ul>
       </div>
       <div>
-        <p class="footer-title">Төлбөр</p>
-        <ul><li>QPay</li><li>Банкны аппууд</li></ul>
+        <p class="footer-title">Хууль эрх зүй</p>
+        <ul><li><a href="/terms">Үйлчилгээний нөхцөл</a></li><li><a href="/privacy">Нууцлалын бодлого</a></li><li><a href="/refund">Буцаалтын бодлого</a></li></ul>
       </div>
     </div>
-    <div class="footer-bottom">© {{ shop }} · Төлбөрийг QPay-ээр хүлээн авна · Захиалга төлбөр ормогц и-мэйлээр очно</div>
+    <div class="footer-bottom">© {{ shop }}{% if company.name %} · {{ company.name }}{% if company.register %} (УБД {{ company.register }}){% endif %}{% endif %} · Төлбөрийг QPay-ээр хүлээн авна</div>
   </div>
 </footer>
 </body>

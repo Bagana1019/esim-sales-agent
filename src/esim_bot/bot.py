@@ -137,7 +137,8 @@ class SalesBot:
             f"🧾 Захиалга #{order.id[:8]}\n"
             + "".join(f"{product_label(self.catalog, sku)}\n" for sku in skus)
             + f"Төлөх дүн: {format_mnt(order.amount_mnt)}\n\n"
-            "Банкны аппаараа QR кодыг уншуулж төлнө үү. Төлбөр орсны дараа захиалга автоматаар энд ирнэ."
+            "Банкны аппаараа QR кодыг уншуулж төлнө үү. Төлбөр орсны дараа захиалга автоматаар энд ирнэ.\n\n"
+            f"Төлснөөр үйлчилгээний нөхцөлийг зөвшөөрнө: {self.orders.public_base_url}/terms"
         )
         buttons: Keyboard = []
         if invoice.short_url:

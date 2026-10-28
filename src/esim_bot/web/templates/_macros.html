@@ -73,6 +73,7 @@
   <div class="row total"><span>Нийт үнэ</span><b data-total>{{ format_mnt(price * qty) }}</b></div>
   <button class="btn shine" type="submit">QPay-ээр төлөх</button>
   <div class="secure">{{ icon("lock", "sm", lazy=false) }}<div><b>QPay-ээр аюулгүй төлнө</b>Банкны аппаараа QR уншуулж эсвэл аппаа сонгоод төлнө.</div></div>
+  <p class="consent">Төлбөр төлснөөр <a href="/terms">Үйлчилгээний нөхцөл</a>, <a href="/refund">Буцаалтын бодлого</a>-ыг зөвшөөрнө.</p>
   {% endif %}
 </form>
 {%- endmacro %}
@@ -83,4 +84,9 @@
   <div><span>{{ caption }}</span><b class="mono">{{ format_mnt(price) }}</b></div>
   <a class="btn pill{% if soldout %} secondary{% endif %}" href="#buy">{{ "Түр дууссан" if soldout else "Захиалах" }}</a>
 </div>
+{%- endmacro %}
+
+{# Хууль эрх зүйн хуудсанд: .env-д бичээгүй байгууллагын мэдээллийг тод харуулна #}
+{% macro field(value, env) -%}
+{%- if value %}{{ value }}{% else %}<mark title=".env-д {{ env }}= бичнэ">[{{ env }}]</mark>{% endif -%}
 {%- endmacro %}

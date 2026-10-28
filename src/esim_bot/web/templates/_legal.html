@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{# Үйлчилгээний нөхцөл, нууцлал, буцаалтын хуудасны нийтлэг бүтэц #}
+{% from "_macros.html" import field %}
+{% block title %}{{ title }} — {{ shop }}{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div class="wrap">
+    <nav class="crumbs" aria-label="Байршил"><a href="/">Нүүр</a><span aria-hidden="true">/</span><span>{{ title }}</span></nav>
+    <h1>{{ title }}</h1>
+    <p>Сүүлд шинэчилсэн: {{ updated }}</p>
+  </div>
+</section>
+
+<div class="wrap page">
+  <nav class="opts topics" aria-label="Хууль эрх зүй">
+    {% for key, (_, label) in pages.items() %}
+    <a class="opt" href="/{{ key }}"{% if key == page %} aria-current="page"{% endif %}><span>{{ label }}</span></a>
+    {% endfor %}
+  </nav>
+  <article class="dsection legal">
+    {% block legal %}{% endblock %}
+    <h2>Холбоо барих</h2>
+    <ul class="legal-contact">
+      <li><span>Байгууллага</span><b>{{ field(company.name, "COMPANY_NAME") }}</b></li>
+      <li><span>Улсын бүртгэлийн дугаар</span><b>{{ field(company.register, "COMPANY_REGISTER") }}</b></li>
+      <li><span>Хаяг</span><b>{{ field(company.address, "COMPANY_ADDRESS") }}</b></li>
+      <li><span>И-мэйл</span><b>{% if company.email %}<a href="mailto:{{ company.email }}">{{ company.email }}</a>{% else %}{{ field("", "SUPPORT_EMAIL") }}{% endif %}</b></li>
+      <li><span>Утас</span><b>{% if company.phone %}<a href="tel:{{ company.phone|replace(' ', '') }}">{{ company.phone }}</a>{% else %}{{ field("", "SUPPORT_PHONE") }}{% endif %}</b></li>
+    </ul>
+  </article>
+</div>
+{% endblock %}

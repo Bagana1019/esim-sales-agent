@@ -64,7 +64,15 @@ def _store(request: Request) -> WebStore:
 
 def _render(request: Request, name: str, status_code: int = 200, **context: Any) -> HTMLResponse:
     store = _store(request)
-    context |= {"shop": store.shop_name}
+    settings = request.app.state.settings
+    company = {
+        "name": settings.company_name,
+        "register": settings.company_register,
+        "address": settings.company_address,
+        "email": settings.support_email,
+        "phone": settings.support_phone,
+    }
+    context |= {"shop": store.shop_name, "company": company, "site_url": store.public_base_url}
     return templates.TemplateResponse(request, name, context, status_code=status_code)
 
 
@@ -181,6 +189,28 @@ async def faq_page(request: Request) -> HTMLResponse:
 @router.get("/install", response_class=HTMLResponse)
 async def install_page(request: Request) -> HTMLResponse:
     return _render(request, "install.html")
+
+
+LEGAL_PAGES = {  # зам → (загвар, гарчиг)
+    "terms": ("legal_terms.html", "Үйлчилгээний нөхцөл"),
+    "privacy": ("legal_privacy.html", "Нууцлалын бодлого"),
+    "refund": ("legal_refund.html", "Буцаалтын бодлого"),
+}
+LEGAL_UPDATED = "2026 оны 10-р сарын 28"  # агуулгыг өөрчлөх бүрд шинэчилнэ
+
+
+def _legal(page: str):
+    # /{page} гэж нэг замаар бичвэл /checkout, /health зэргийг халхална — зам бүрийг тусад нь бүртгэнэ
+    template, title = LEGAL_PAGES[page]
+
+    async def handler(request: Request) -> HTMLResponse:
+        return _render(request, template, page=page, title=title, pages=LEGAL_PAGES, updated=LEGAL_UPDATED)
+
+    return handler
+
+
+for _page in LEGAL_PAGES:
+    router.add_api_route(f"/{_page}", _legal(_page), methods=["GET"], response_class=HTMLResponse)
 
 
 @router.get("/checkout")

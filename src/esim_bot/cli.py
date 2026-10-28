@@ -8,17 +8,20 @@
   uv run esim set-webhook            # Telegram webhook бүртгэх
   uv run esim test-email you@mail.mn # и-мэйлийн тохиргоог (Mailgun/SMTP) шалгах
   uv run esim qpay-test              # QPay-ийн түлхүүрийг 100₮-ийн жинхэнэ төлбөрөөр шалгах
+  uv run esim backup                 # өгөгдлийн сангийн нөөц хуулбар (сервер ажиллаж байхад ч болно)
 """
 
 import argparse
 import asyncio
 import logging
+import sqlite3
 import time
 from pathlib import Path
 from uuid import uuid4
 
 import httpx
 
+from .backup import backup_database
 from .catalog import Catalog
 from .channels.base import Button, Keyboard
 from .channels.telegram import dispatch, parse_update
@@ -241,6 +244,18 @@ async def qpay_test(amount: int, wait_minutes: float = 10, poll_seconds: float =
         raise SystemExit(f"{wait_minutes:g} минутад төлбөр орсонгүй. Дахин оролдоно уу.")
 
 
+def backup_cmd() -> None:
+    settings = get_settings()
+    try:
+        info = backup_database(settings.database_url, settings.backup_dir, settings.backup_keep)
+    except (OSError, ValueError, RuntimeError, sqlite3.Error) as e:
+        raise SystemExit(f"Нөөц хуулбар хийж чадсангүй: {e}") from e
+    print(
+        f"✅ {info.path.resolve()} ({info.size_bytes / 1024:.0f} KB, {info.orders} захиалга, "
+        f"{info.unused_esims} ашиглагдаагүй eSIM). Сүүлийн {settings.backup_keep} хуулбарыг хадгална."
+    )
+
+
 async def set_webhook() -> None:
     settings = get_settings()
     services = await build_services(settings)
@@ -268,6 +283,7 @@ def main() -> None:
     sub.add_parser("stock", help="eSIM, лицензийн үлдэгдэл (дууссаныг тэмдэглэнэ)")
     sub.add_parser("set-webhook", help="Telegram webhook бүртгэх")
     p_mail = sub.add_parser("test-email", help="и-мэйлийн тохиргоог (Mailgun/SMTP) шалгах")
+    sub.add_parser("backup", help="өгөгдлийн сангийн нөөц хуулбар (BACKUP_DIR хавтаст)")
     p_qpay = sub.add_parser("qpay-test", help="QPay-ийн түлхүүрийг жинхэнэ жижиг төлбөрөөр шалгах")
     p_qpay.add_argument("--amount", type=int, default=100, help="төлөх дүн, ₮ (анхдагч 100)")
     p_mail.add_argument("to", help="хүлээн авах хаяг")
@@ -290,6 +306,8 @@ def main() -> None:
         asyncio.run(set_webhook())
     elif args.cmd == "test-email":
         asyncio.run(test_email(args.to))
+    elif args.cmd == "backup":
+        backup_cmd()
     elif args.cmd == "qpay-test":
         try:
             asyncio.run(qpay_test(args.amount))

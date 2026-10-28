@@ -259,3 +259,26 @@ def test_static_assets_are_served(client):
     assert client.get(css).status_code == 200
     assert client.get("/static/icons/globe.webp").headers["content-type"] == "image/webp"
     assert client.get("/static/flags/jp.svg").status_code == 200
+
+
+def test_legal_pages_show_company_details(client, monkeypatch):
+    for path, title in [("/terms", "Үйлчилгээний нөхцөл"), ("/privacy", "Нууцлалын бодлого"), ("/refund", "Буцаалтын бодлого")]:
+        page = client.get(path)
+        assert page.status_code == 200 and f"<h1>{title}</h1>" in page.text
+        assert f'href="{path}" aria-current="page"' in page.text
+        assert "<mark" in page.text and "[COMPANY_NAME]" in page.text  # тохируулаагүйг тод харуулна
+    home = client.get("/").text
+    assert all(f'href="{p}"' in home for p in ("/terms", "/privacy", "/refund"))
+    assert 'href="/terms">Үйлчилгээний нөхцөл</a>, <a href="/refund">' in client.get("/esim/JP-7D-5GB").text  # төлөхийн өмнө
+    # Тусдаа замаар бүртгэсэн тул бусад зам халхлагдахгүй
+    assert client.get("/health").json() == {"ok": True}
+    assert client.get("/checkout?sku=JP-7D-5GB", follow_redirects=False).status_code == 303
+
+    settings = client.app.state.settings
+    monkeypatch.setattr(settings, "company_name", "Номад Дата ХХК")
+    monkeypatch.setattr(settings, "company_register", "1234567")
+    monkeypatch.setattr(settings, "support_email", "help@nomaddata.mn")
+    terms = client.get("/terms").text
+    assert "Номад Дата ХХК" in terms and 'href="mailto:help@nomaddata.mn"' in terms and "[COMPANY_NAME]" not in terms
+    assert "[SUPPORT_PHONE]" in terms
+    assert "Номад Дата ХХК (УБД 1234567)" in client.get("/").text
